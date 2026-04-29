@@ -1,113 +1,112 @@
-# 🐧 Pingo - Real-time P2P Location
+# 🐧 P2PT - Real-time P2P Location
 
 > [!TIP]
-> Si vas a sincronizar tus rutas con un servidor privado, consulta esta guía sobre [Gitea y CORS](https://people.iola.dk/arj/2020/04/28/gitea-and-cors/) para configurar el acceso desde la App.
+> If you are going to synchronize your routes with a private server, check this guide on [Gitea and CORS](https://people.iola.dk/arj/2020/04/28/gitea-and-cors/) to configure access from the App.
 
-Pingo es una herramienta de geolocalización en tiempo real diseñada para ser **privada, ligera y persistente**.
+P2PT is a real-time geolocation tool designed to be **private, lightweight, and persistent**.
 
 <!-- pingo-user-guide-start -->
-## 🚀 Cómo configurar tu Pingo
+## 🚀 How to Set Up Your P2PT
 
-Para empezar a usar Pingo de forma segura, sigue estos pasos:
+To start using P2PT safely, follow these steps:
 
-1.  **Establece tu Identidad**:
-    - Abre el panel de **Configuración** (icono de engranaje ⚙️).
-    - En el apartado **MI IDENTIDAD**, introduce tu **Alias/Nombre**, una **Frase Secreta** y una **Sal**.
-    - Pulsa **Fijar Identidad**. Esto generará un ID único de 8 dígitos. Tu **Alias** es el nombre que verán los demás cuando les envíes un aviso (Push) o chatees con ellos. Si pierdes el móvil, puedes recuperar el mismo ID usando la misma frase y sal en otro dispositivo.
+1.  **Establish Your Identity**:
+    - Open the **Settings** panel (gear icon ⚙️).
+    - In the **MY IDENTITY** section, enter your **Alias/Name**, a **Secret Phrase**, and a **Salt**.
+    - Click **Set Identity**. This will generate a unique 8-digit ID. Your **Alias** is the name others will see when you send them a notification (Push) or chat with them. If you lose your phone, you can recover the same ID using the same phrase and salt on another device.
 
-2.  **Añade a tus "Pingos" (Contactos)**:
-    - Para ver a otra persona, necesitas añadirla a tu **Agenda**.
-    - Pídeles su **Frase Secreta** y **Sal** (o que te pasen su link de invitación).
-    - **Novedad**: También puedes añadirlos usando su **ID de conexión (manual)** si no usan frases secretas.
-    - ¡Listo! Ahora aparecerán en tu lista.
+2.  **Add Your "P2PTs" (Contacts)**:
+    - To see someone else, you need to add them to your **Agenda**.
+    - Ask them for their **Secret Phrase** and **Salt** (or have them send you their invitation link).
+    - **New**: You can also add them using their **Connection ID (manual)** if they don't use secret phrases.
+    - Done! Now they will appear in your list.
 
-3.  **Servicios en la Nube (Opcional)**:
-    - Si tienes problemas de conexión (especialmente en 4G/5G), activa **Servicios en la Nube** en Ajustes.
-    - Esto habilita el **Relé TURN** (servidor intermedio) y las **Notificaciones Push** para cuando la App está cerrada.
+3.  **Cloud Services (Optional)**:
+    - If you have connection problems (especially on 4G/5G), enable **Cloud Services** in Settings.
+    - This enables the **TURN Relay** (intermediate server) and **Push Notifications** for when the App is closed.
 
-## 📡 Conexión y Cobertura (P2P)
+## 📡 Connection and Coverage (P2P)
 
-Pingo usa tecnología P2P directa para conectar dispositivos. El éxito de la conexión depende de tu red:
+P2PT uses direct P2P technology to connect devices. Connection success depends on your network:
 
-| Escenario | Éxito P2P | Nota |
+| Scenario | P2P Success | Note |
 | :--- | :--- | :--- |
-| **WiFi a WiFi** | **~99%** | Ideal para casa/oficina. |
-| **WiFi a 4G/5G** | **~70%** | Depende del operador móvil. |
-| **5G a 5G** | **~30%** | Requiere activar "Servicios Nube" (TURN). |
+| **WiFi to WiFi** | **~99%** | Ideal for home/office. |
+| **WiFi to 4G/5G** | **~70%** | Depends on the mobile operator. |
+| **5G to 5G** | **~30%** | Requires enabling "Cloud Services" (TURN). |
 
-### Comportamiento por Operador (España)
-| Operador | Calidad P2P | Solución si falla |
+### Behavior by Operator (Spain)
+| Operator | P2P Quality | Solution if it fails |
 | :--- | :--- | :--- |
-| **Movistar / O2** | Excelente | No requiere ajustes extra. |
-| **Vodafone** | Excelente | Funciona directo casi siempre. |
-| **Orange / Jazztel** | Buena | Generalmente estable. |
-| **Digi / Yoigo** | Limitada | **Activa Servicios en la Nube (TURN)**. |
+| **Movistar / O2** | Excellent | No extra adjustments required. |
+| **Vodafone** | Excellent | Works direct almost always. |
+| **Orange / Jazztel** | Good | Generally stable. |
+| **Digi / Yoigo** | Limited | **Enable Cloud Services (TURN)**. |
 
 ---
 
-## 📱 Uso Diario
+## 📱 Daily Use
 
-- **Conexión Local**: Pulsa el icono de la flecha (🚀) en un contacto para intentar conectar con él. Si ambos estáis con la App abierta, os veréis en el mapa.
-- **Grupos y Chats**: Al conectar con varios contactos, se forma un "enjambre" P2P. Los mensajes de chat se retransmiten automáticamente entre todos los conectados (relay), permitiendo chats grupales privados y fluidos.
-- **Geovalla**: Puedes activar una zona segura para un contacto. Tu móvil te avisará si esa persona se sale del radio que hayas configurado. Las geovallas son privadas: tu móvil vigila al otro sin guardar datos en servidores.
-- **Pingo Routes (Modo Cartografía)**: Graba tus rutas y trayectos en tiempo real. Pingo utiliza un repositorio Git local (en tu navegador) para guardar el historial con total trazabilidad e inmutabilidad. Puedes compartir estas rutas con otros Pingos de forma directa (P2P) y ellos podrán importarlas a su propia colección.
+- **Local Connection**: Click the arrow icon (🚀) on a contact to try to connect with them. If you both have the App open, you will see each other on the map.
+- **Groups and Chats**: When connecting with multiple contacts, a P2P "swarm" is formed. Chat messages are automatically retransmitted among all connected peers (relay), allowing private and fluid group chats.
+- **Geofence**: You can activate a safe zone for a contact. Your phone will notify you if that person leaves the radius you have configured. Geofences are private: your phone monitors the other without saving data on servers.
+- **P2PT Routes (Cartography Mode)**: Record your routes and journeys in real-time. P2PT uses a local Git repository (in your browser) to save the history with full traceability and immutability. You can share these routes with other P2PTs directly (P2P) and they can import them into their own collection.
 
-## ✨ Preguntas Frecuentes
+## ✨ Frequently Asked Questions
 
-- **¿Por qué mi ID es siempre el mismo?**: Pingo usa criptografía avanzada (PBKDF2) para generar tu identidad a partir de tu Frase Secreta. Esto permite que recuperes tu ID y tus contactos incluso si cambias de móvil, simplemente usando la misma frase.
-- **¿Qué es el círculo transparente en el mapa?**: Indica la **Precisión GPS**. Cuanto más pequeño sea el círculo, más exacta es la ubicación de tu contacto. Si el círculo es grande, es posible que la persona esté dentro de un edificio o con mala cobertura satelital.
-- **¿Por qué desaparece el rastro (trail)?**: Para que la App vuele, los rastros tienen un límite de 500 puntos. Solo verás la estela completa de tus contactos mientras ellos estén grabando una ruta (REC).
+- **Why is my ID always the same?**: P2PT uses advanced cryptography (PBKDF2) to generate your identity from your Secret Phrase. This allows you to recover your ID and contacts even if you change phones, simply by using the same phrase.
+- **What is the transparent circle on the map?**: Indicates **GPS Accuracy**. The smaller the circle, the more exact your contact's location is. If the circle is large, the person might be inside a building or with poor satellite coverage.
+- **Why does the trail disappear?**: To keep the App fast, trails have a limit of 500 points. You will only see the full trail of your contacts while they are recording a route (REC).
 <!-- pingo-user-guide-end -->
 
-## 🛠️ Detalles Técnicos
+## 🛠️ Technical Details
 
-- **P2P Directo**: Comunicación cifrada y directa vía WebRTC.
-- **Relé TURN (Opcional)**: Supera firewalls restrictivos y redes móviles mediante un servidor de relé propio.
-- **Cero Servidores Centrales**: Tus coordenadas no se guardan en la nube (el backend solo gestiona credenciales y el relé nunca descifra el contenido).
-- **Notificaciones Push (Modo Híbrido)**: Pingo utiliza el estándar Web Push para despertar dispositivos. Cuando envías un "Ping", el servidor en la nube busca la suscripción del receptor y le envía un aviso instantáneo que funciona incluso con la App cerrada.
-- **Deep Linking Inteligente**: Las notificaciones incluyen un enlace dinámico que, al ser pulsado, abre la App, establece la conexión P2P automáticamente y despliega el panel de chat para una respuesta inmediata.
-- **Smart Geolocation**: Sistema de doble vía con inicio rápido (caché) y fallback automático a baja precisión en interiores.
-- **Versión Sincronizada**: El script `./v.sh` garantiza que todos los módulos y el Service Worker estén siempre actualizados y libres de caché.
-- **Trazabilidad Git**: Gestión de historial de rutas mediante `isomorphic-git` sin servidores.
-- **Git Proxy (Relé)**: El backend permite sincronizar tu repositorio local con remotos externos (como GitHub) de forma segura.
+- **Direct P2P**: Encrypted and direct communication via WebRTC.
+- **TURN Relay (Optional)**: Overcomes restrictive firewalls and mobile networks through its own relay server.
+- **Zero Central Servers**: Your coordinates are not saved in the cloud (the backend only manages credentials and the relay never decrypts the content).
+- **Push Notifications (Hybrid Mode)**: P2PT uses the Web Push standard to wake up devices. When you send a "Ping", the cloud server looks for the recipient's subscription and sends an instant notice that works even with the App closed.
+- **Smart Deep Linking**: Notifications include a dynamic link that, when clicked, opens the App, establishes the P2P connection automatically, and unfolds the chat panel for an immediate response.
+- **Smart Geolocation**: Dual-way system with fast start (cache) and automatic fallback to low precision indoors.
+- **Synced Version**: The `./v.sh` script ensures that all modules and the Service Worker are always updated and cache-free.
+- **Git Traceability**: Route history management using `isomorphic-git` without servers.
+- **Git Proxy (Relay)**: The backend allows synchronizing your local repository with external remotes (like GitHub) securely.
 
-## 📱 Versión Nativa (Android/iOS) con Capacitor
+## 📱 Native Version (Android/iOS) with Capacitor
 
-Pingo puede ejecutarse como una App nativa real para aprovechar funciones avanzadas como la interceptación de contenido externo.
+P2PT can run as a real native App to take advantage of advanced features like external content interception.
 
-### 🎥 Captura de YouTube a Git
-La versión nativa incluye un botón de **YouTube** que permite:
-1. Abrir la versión móvil de YouTube en un navegador interno controlado.
-2. Interceptar cada clic que hagas en un enlace de vídeo (`/watch?v=...`).
-3. Generar automáticamente un archivo `.txt` con los detalles del vídeo y realizar un **Git Commit** instantáneo en tu repositorio local de rutas para guardarlo en tu historial.
+### 🎥 YouTube to Git Capture
+The native version includes a **YouTube** button that allows you to:
+1. Open the mobile version of YouTube in a controlled internal browser.
+2. Intercept every click you make on a video link (`/watch?v=...`).
+3. Automatically generate a `.txt` file with the video details and perform an instant **Git Commit** in your local route repository to save it in your history.
 
-### 🛠️ Cómo compilar la App Nativa
-Si estás en un entorno de desarrollo con Android Studio instalado:
+### 🛠️ How to Compile the Native App
+If you are in a development environment with Android Studio installed:
 
-1.  **Genera el build web**:
+1.  **Generate the web build**:
     ```bash
     npm run build
     ```
-2.  **Sincroniza con Capacitor**:
+2.  **Sync with Capacitor**:
     ```bash
     npx cap sync android
     ```
-3.  **Abre en Android Studio**:
+3.  **Open in Android Studio**:
     ```bash
     npx cap open android
     ```
-    *Desde Android Studio, pulsa "Run" para instalarla en tu dispositivo físico o emulador.*
+    *From Android Studio, click "Run" to install it on your physical device or emulator.*
 
 
-## 🛠️ Tecnologías
+## 🛠️ Technologies
 
-- **Arquitectura**: Modular ES6 (directorio `js/`).
-- **Mapas**: Leaflet.js (CartoDB Dark).
-- **Conectividad**: PeerJS (P2P / WebRTC).
-- **PWA**: Instalable en Android/iOS como una App nativa.
-- **Seguridad**: Web Crypto API (SHA-256 / PBKDF2) para identidades privadas.
-- **Versionado**: isomorphic-git + lightning-fs para persistencia robusta de rutas.
+- **Architecture**: Modular ES6 (`js/` directory).
+- **Maps**: Leaflet.js (CartoDB Dark).
+- **Connectivity**: PeerJS (P2P / WebRTC).
+- **PWA**: Installable on Android/iOS as a native App.
+- **Security**: Web Crypto API (SHA-256 / PBKDF2) for private identities.
+- **Versioning**: isomorphic-git + lightning-fs for robust route persistence.
 
 ---
-*Desarrollado con ❤️ para ser la forma más sencilla y privada de cuidar de los tuyos.*
-# p2pt
+*Developed with ❤️ to be the simplest and most private way to take care of your loved ones.*

@@ -1,0 +1,21 @@
+/**
+ * Pingo - UI Management
+ */
+
+import { state, elements } from './state.js';
+import { VERSION, REFRESH_RATE_FG } from './constants.js';
+import { updateTrail, fitMapBounds, updateGeofenceCircle } from './map-manager.js';
+import { ensureSignalingConnection, restoreActiveConnections, broadcastLocation, connectToPeer, disconnectFromPeer } from './peer-manager.js';
+import { saveIdentity, saveAgenda, getAliasForPeer } from './identity-manager.js';
+import { saveGeofenceState, loadGeofenceState } from './geofence-manager.js';
+import { derivePeerId, getPeerColor, updateLocationStatus } from './utils.js';
+import { initPushNotifications, sendPushPing } from '../push-notifications.js';
+import { startRecording, stopRecording, saveRoute } from './route-manager.js';
+import { pushToRemote, pullFromRemote, loadRoutesFromGit, commitLinkFile, readRawFile } from './git-manager.js';
+import { renderRoute, clearRoute } from './map-manager.js';
+import { shareRouteP2P } from './sync-manager.js';
+import { vectorManager } from './vector-manager.js';
+import { marked } from 'marked';
+import README from '../../README.md?raw';
+
+// ... (Rest of the file remains same, I will append the new functions at the end)

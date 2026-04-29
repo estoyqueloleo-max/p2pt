@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+    <title>P2PT - Pin & Go</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <!-- Styles -->
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <div class="logo">
+                <i class="fas fa-location-dot"></i>
+                <h1>P2PT <span id="app-version-header"
+                        style="font-size: 0.6rem; opacity: 0.5; font-weight: normal;">...</span></h1>
+            </div>
+            <div class="header-controls">
+                <div id="status-indicator" class="status-dot"></div>
+                <button id="install-pwa-btn" class="btn btn-primary btn-sm"
+                    style="display: none; margin-top: 0; width: auto; padding: 5px 10px;">
+                    <i class="fas fa-download"></i> Instalar
+                </button>
+                <button id="mode-standard-btn" class="icon-btn active" title="Modo Localización"><i class="fas fa-location-arrow"></i></button>
+                <button id="mode-cartography-btn" class="icon-btn" title="Modo Cartografía"><i class="fas fa-map-marked-alt"></i></button>
+                <button id="chat-btn" class="icon-btn" title="Chat">
+                    <i class="fas fa-comment-dots"></i>
+                    <span id="chat-badge" class="badge" style="display: none;"></span>
+                </button>
+                <button id="btn-open-youtube" class="icon-btn" title="Abrir YouTube"><i class="fab fa-youtube" style="color: #ff0000;"></i></button>
+                <button id="panel-toggle" class="icon-btn" title="Configuración"><i class="fas fa-cog"></i></button>
+            </div>
+        </header>
+
+        <main id="settings-panel">
+            <div id="multi-tab-warning" class="panel warning-panel" style="display: none; background-color: rgba(255, 193, 7, 0.1); border-left: 4px solid #ffc107; margin-bottom: 0;">
+                <p style="font-size: 0.8rem; margin: 0;"><i class="fas fa-triangle-exclamation"></i> <strong>Modo Pasivo:</strong> Otra pestaña tiene el control del GPS y P2P.</p>
+            </div>
+
+            <div id="global-search-section">
+                <div class="divider"><span>SEMÁNTICA & BÚSQUEDA</span></div>
+                <div class="actions" style="flex-direction: column; gap: 8px; margin-bottom: 15px;">
+                    <button id="index-vectors-btn" class="btn btn-outline btn-sm" style="width: 100%;">
+                        <i class="fas fa-brain"></i> Indexar Contenido (IA)
+                    </button>
+                    <div id="vector-index-progress" style="display: none; width: 100%;">
+                        <div class="progress-bar-bg" style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 5px;">
+                            <div id="vector-index-bar" style="background: var(--primary); height: 100%; width: 0%; transition: width 0.3s;"></div>
+                        </div>
+                        <p id="vector-index-status" class="small-hint" style="margin-top: 5px; text-align: center; font-size: 0.7rem;">Preparando motor...</p>
+                    </div>
+                    <div class="search-bar" style="width: 100%; position: relative;">
+                        <input type="text" id="semantic-search-input" placeholder="Búsqueda por significado..." class="input-sm" style="width: 100%; padding-left: 30px;">
+                        <i class="fas fa-search" style="position: absolute; left: 10px; top: 8px; opacity: 0.5; font-size: 0.8rem;"></i>
+                    </div>
+                </div>
+            </div>
+            <div id="connection-panel" class="panel agenda-panel">
+                <div class="id-display">
+                    <label>Tu ID de conexión</label>
+                    <div class="id-container">
+                        <code id="my-peer-id">Generando...</code>
+                        <button id="copy-id-btn" title="Copiar ID"><i class="far fa-copy"></i></button>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button id="share-btn" class="btn btn-primary">
+                        <i class="fas fa-share-nodes"></i> Compartir mi ubicación
+                    </button>
+                </div>
+
+                <div class="divider"><span>MI IDENTIDAD</span></div>
+                <button id="toggle-identity-btn" class="btn btn-outline btn-sm"
+                    style="width: 100%; margin-bottom: 8px;">
+                    <i class="fas fa-id-card"></i> Gestionar mi Identidad
+                </button>
+                <div id="identity-form" class="inline-form" style="display: none;">
+                    <div class="input-group-row" style="margin-bottom: 10px;">
+                        <input type="text" id="identity-alias" placeholder="Tu nombre o alias..." class="input-sm" style="flex: 1;">
+                    </div>
+                    <div class="input-group-row">
+                        <input type="password" id="identity-phrase" placeholder="Tu frase secreta..." class="input-sm"
+                            style="flex: 2;">
+                        <input type="text" id="identity-salt" placeholder="Sal" class="input-sm" style="flex: 1;">
+                    </div>
+                    <div class="form-actions-row" style="margin-top: 10px;">
+                        <button id="cancel-identity-btn" class="btn btn-outline btn-sm">Cancelar</button>
+                        <button id="save-identity-btn" class="btn btn-primary btn-sm">Fijar Identidad</button>
+                    </div>
+                    <p class="small-hint">Usa la misma frase y sal en otro móvil para recuperar tu ID.</p>
+                </div>
+
+                <div class="divider"><span>COPIA DE SEGURIDAD</span></div>
+                <div class="actions-row" style="display: flex; gap: 8px; margin-bottom: 10px;">
+                    <button id="export-backup-btn" class="btn btn-outline btn-sm" style="flex: 1;">
+                        <i class="fas fa-file-export"></i> Exportar
+                    </button>
+                    <button id="import-backup-btn" class="btn btn-outline btn-sm" style="flex: 1;">
+                        <i class="fas fa-file-import"></i> Importar
+                    </button>
+                </div>
+                <input type="file" id="import-file-input" style="display: none;" accept=".json">
+
+                <div class="divider"><span>MIS P2PT (AGENDA)</span></div>
+
+                <!-- Formulario Inline para Añadir (Oculto por defecto) -->
+                <div id="add-contact-form" class="inline-form" style="display: none;">
+                    <div style="margin-bottom: 12px; font-size: 0.8rem; color: var(--text-dim); background: rgba(99, 102, 241, 0.1); padding: 8px; border-radius: 8px; border-left: 2px solid var(--primary); pointer-events: none;">
+                        <i class="fas fa-info-circle"></i> <strong>Tip:</strong> Deja el ID vacío para generarlo automáticamente usando la Frase + Sal de tu contacto.
+                    </div>
+                    <input type="text" id="contact-name" placeholder="Nombre (ej: Hijo)" class="input-sm">
+                    <input type="password" id="contact-phrase" placeholder="Frase Secreta (opcional)" class="input-sm">
+                    <input type="text" id="contact-salt" placeholder="Sal de Seguridad (opcional)" class="input-sm">
+                    <input type="text" id="contact-id" placeholder="ID de conexión (manual)" class="input-sm">
+                    <div class="form-actions-row">
+                        <button id="cancel-contact-btn" class="btn btn-outline btn-sm">Cancelar</button>
+                        <button id="save-contact-btn" class="btn btn-primary btn-sm">Guardar</button>
+                    </div>
+                </div>
+
+                <div id="agenda-container" class="agenda-list">
+                    <!-- Contacts will be injected here -->
+                    <p id="empty-agenda-hint" class="small-hint" style="text-align: center; padding: 10px;">Tu agenda
+                        está vacía.</p>
+                </div>
+                <button id="add-contact-btn" class="btn btn-outline btn-sm" style="margin-top: 5px; width: 100%;">
+                    <i class="fas fa-user-plus"></i> Añadir a la Agenda
+                </button>
+
+                <div class="divider"><span>GEOVALLA</span></div>
+                <div class="geofence-container">
+                    <div class="geofence-row-inline">
+                        <label>Zona segura activa</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span id="remote-geofence-badge"
+                                style="display: none; font-size: 0.65rem; background: var(--primary); padding: 2px 6px; border-radius: 4px;">REMOTA</span>
+                            <label class="switch">
+                                <input type="checkbox" id="geofence-toggle">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="geofence-row">
+                        <label>Radio de la zona: <span id="geofence-radius-val">100</span>m</label>
+                        <input type="range" id="geofence-radius" min="50" max="1000" step="50" value="100"
+                            style="width: 100%;">
+                    </div>
+                    <button id="set-geofence-center" class="btn btn-outline btn-sm">
+                        <i class="fas fa-crosshairs"></i> Centrar en mi posición
+                    </button>
+                </div>
+
+                <div class="divider"><span>SISTEMA</span></div>
+                <div class="geofence-row-inline" style="margin-bottom: 15px;">
+                    <label>Servicios en la Nube (Relay/Push)</label>
+                    <label class="switch">
+                        <input type="checkbox" id="cloud-services-toggle">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <div class="geofence-row-inline" style="margin-bottom: 15px;">
+                    <label>Modo Persistente (Segundo Plano)</label>
+                    <label class="switch">
+                        <input type="checkbox" id="persistence-toggle">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <div class="actions" style="display: flex; gap: 10px; flex-direction: column;">
+                    <button id="stop-sharing-btn" class="btn btn-danger btn-sm"
+                        style="display: flex; background-color: var(--danger);">
+                        <i class="fas fa-stop-circle"></i> Dejar de compartir
+                    </button>
+                    <button id="force-reset-btn" class="btn btn-danger btn-sm" style="opacity: 0.8;">
+                        <i class="fas fa-sync-alt"></i> Forzar Actualización (Caché)
+                    </button>
+                </div>
+
+                <div class="divider"><span>GUÍA Y SOPORTE</span></div>
+                <div id="guide-accordion" class="guide-accordion">
+                    <p class="small-hint" style="text-align: center; padding: 20px;">Cargando guía de usuario...</p>
+                </div>
+            </div>
+
+            <!-- Panel de Rutas (Cartografía) -->
+            <div id="routes-panel" class="panel" style="display: none;">
+                <div class="divider"><span>REC: DIARIO DE RUTA</span></div>
+                <div class="actions">
+                    <button id="start-recording-btn" class="btn btn-success">
+                        <i class="fas fa-play"></i> Iniciar Grabación
+                    </button>
+                    <button id="stop-recording-btn" class="btn btn-danger" style="display: none;">
+                        <i class="fas fa-stop"></i> Detener y Guardar
+                    </button>
+                </div>
+
+                <!-- Diálogo para guardar ruta -->
+                <div id="save-route-form" class="inline-form" style="display: none; margin-top: 15px; border: 1px solid var(--success);">
+                    <label style="font-size: 0.8rem; opacity: 0.7;">Nombre de la ruta</label>
+                    <input type="text" id="route-name-input" placeholder="Mi ruta hoy..." class="input-sm">
+                    <div class="form-actions-row" style="margin-top: 10px;">
+                        <button id="cancel-route-btn" class="btn btn-outline btn-sm">Descartar</button>
+                        <button id="save-route-confirm-btn" class="btn btn-primary btn-sm">Guardar en Git</button>
+                    </div>
+                </div>
+
+                <div class="divider"><span>SINCRONIZACIÓN REMOTA</span></div>
+                <div id="git-remote-config" class="inline-form" style="margin-bottom: 15px;">
+                    <div style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 8px;">
+                        Configura un repositorio externo (Gitea/GitHub) para backup.
+                    </div>
+                    <input type="text" id="git-remote-url" placeholder="https://gitea.com/user/pingo-routes" class="input-sm">
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <input type="text" id="git-username" placeholder="Usuario" class="input-sm" style="flex: 1;">
+                        <input type="password" id="git-token" placeholder="Token / Pass" class="input-sm" style="flex: 1;">
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 10px;">
+                        <button id="git-pull-btn" class="btn btn-outline btn-sm" style="flex: 1;">
+                            <i class="fas fa-cloud-download-alt"></i> Bajar ⬇️
+                        </button>
+                        <button id="git-push-btn" class="btn btn-primary btn-sm" style="flex: 1;">
+                            <i class="fas fa-cloud-upload-alt"></i> Subir ⬆️
+                        </button>
+                    </div>
+                    <button id="git-clear-btn" class="btn btn-danger btn-sm" style="margin-top: 8px; background-color: #334155; opacity: 0.8;">
+                        <i class="fas fa-trash-alt"></i> Borrar Repo Local 🗑️
+                    </button>
+                </div>
+                </div>
+
+                <div class="divider"><span>MIS RUTAS (GIT REPO)</span></div>
+                <div id="routes-container" class="agenda-list">
+                    <!-- Routes will be injected here -->
+                    <p class="small-hint" style="text-align: center; padding: 10px;">No tienes rutas guardadas.</p>
+                </div>
+            </div>
+        </main>
+
+        <div id="map-container">
+            <div id="working-copy-banner" class="working-copy-banner" style="display: none;">
+                <div class="wc-content">
+                    <i class="fas fa-edit pulse-edit"></i>
+                    <span>Copia: <strong id="working-copy-name">...</strong></span>
+                    <button id="edit-working-copy-btn" class="btn btn-primary btn-xs" style="margin-left: 10px; width: auto; padding: 2px 8px; display: none;">
+                        <i class="fas fa-pen"></i> Editar
+                    </button>
+                </div>
+                <button id="unload-working-copy-btn" class="icon-btn btn-xs" title="Cerrar Copia de Trabajo">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Editor de Texto para Working Copy -->
+            <div id="text-editor-container" class="modal-overlay" style="display: none; z-index: 1600;">
+                <div class="modal-content" style="max-width: 90%; width: 500px; height: 80vh; display: flex; flex-direction: column;">
+                    <div class="modal-header">
+                        <i class="fas fa-file-alt modal-icon"></i>
+                        <h3 id="editor-title">Editar Archivo</h3>
+                    </div>
+                    <div class="modal-body" style="flex: 1; display: flex; flex-direction: column; padding: 10px;">
+                        <textarea id="text-editor-textarea" style="flex: 1; width: 100%; font-family: monospace; font-size: 0.9rem; resize: none; border: 1px solid var(--primary); border-radius: 8px; padding: 10px;"></textarea>
+                    </div>
+                    <div class="modal-footer" style="padding: 10px; display: flex; gap: 10px; justify-content: flex-end;">
+                        <button id="close-editor-btn" class="btn btn-outline btn-sm" style="width: auto;">Cancelar</button>
+                        <button id="save-editor-btn" class="btn btn-primary btn-sm" style="width: auto;">Guardar en Git</button>
+                    </div>
+                </div>
+            </div>
+            <div id="map"></div>
+            
+            <!-- HUD de Grabación -->
+            <div id="recording-hud" class="recording-hud" style="display: none;">
+                <div class="pulse-red"></div>
+                <div class="rec-info">
+                    <span class="rec-label">REC</span>
+                    <span id="recording-timer" class="rec-timer">0:00</span>
+                    <span class="rec-stats">
+                        <i class="fas fa-location-dot"></i> <span id="recording-points-count">0</span> pts
+                    </span>
+                </div>
+            </div>
+        </div>
+
+
+
+    <!-- Panel de Chat -->
+    <div id="chat-panel" class="chat-panel collapsed">
+        <div class="chat-header">
+            <h3><i class="fas fa-comments"></i> Chat P2P</h3>
+            <button id="close-chat-btn" class="icon-btn"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="chat-messages" class="chat-messages">
+            <p class="chat-hint">Conecta con alguien para empezar a chatear...</p>
+        </div>
+    </div>
+
+    <footer id="main-footer">
+        <!-- Modo Estado (Default) -->
+        <div id="footer-status-mode" class="footer-content">
+            <div id="location-status">
+                <i class="fas fa-crosshairs"></i> Obteniendo ubicación...
+            </div>
+            <button id="manual-location-btn" class="btn btn-outline btn-xs" style="display: none; margin-left: 10px;">
+                <i class="fas fa-hand-pointer"></i> Fijar manual
+            </button>
+        </div>
+
+        <!-- Modo Chat (Activo) -->
+        <div id="footer-chat-mode" class="footer-content chat-active-footer" style="display: none;">
+            <button id="exit-chat-btn" class="icon-btn" title="Cerrar Chat">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="chat-input-bar">
+                <button id="share-active-route-btn" class="icon-btn" title="Compartir última ruta" style="color: var(--primary); padding: 0 10px;">
+                    <i class="fas fa-folder-plus"></i>
+                </button>
+                <input type="text" id="chat-input" placeholder="Escribe un mensaje..." autocomplete="off">
+                <button id="send-chat-btn" class="btn-send">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </footer>
+    </div>
+    
+    <!-- Modal de Confirmación Custom (para evitar problemas con confirm() nativo) -->
+    <div id="confirm-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i class="fas fa-question-circle modal-icon"></i>
+                <h3 id="confirm-modal-title">Confirmación</h3>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-modal-message">¿Estás seguro?</p>
+            </div>
+            <div class="modal-footer">
+                <button id="confirm-modal-cancel" class="btn btn-outline">Cancelar</button>
+                <button id="confirm-modal-ok" class="btn btn-primary">Aceptar</button>
+            </div>
+        </div>
+    </div>
+    <!-- Modal de Detalles de Conexión -->
+    <div id="conn-stats-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 90%; width: 400px;">
+            <div class="modal-header">
+                <i class="fas fa-network-wired modal-icon"></i>
+                <h3 id="conn-stats-title">Estado de Conexión</h3>
+            </div>
+            <div class="modal-body" style="padding: 20px 15px;">
+                <div id="conn-stats-viz" class="conn-viz">
+                    <!-- Viz will be injected here -->
+                </div>
+                <div id="conn-stats-details" class="conn-details" style="margin-top: 20px; font-size: 0.85rem; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
+                    <!-- Stats will be injected here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="conn-stats-close" class="btn btn-primary">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="./src/js/main.js"></script>
+</body>
+
+</html>
