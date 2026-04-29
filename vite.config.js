@@ -96,10 +96,10 @@ export default defineConfig({
   ],
   server: {
     host: true, // Exponer a la red local (0.0.0.0)
-    https: {
+    https: (fs.existsSync('./key.pem') && fs.existsSync('./cert.pem')) ? {
       key: fs.readFileSync('./key.pem'),
       cert: fs.readFileSync('./cert.pem'),
-    },
+    } : false,
     watch: {
       ignored: ['**/backend/**'] // Ignorar el backend para evitar errores de escaneo
     }
