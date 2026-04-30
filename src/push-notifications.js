@@ -1,7 +1,7 @@
 import { VERSION } from './js/constants.js';
 
 const PUSH_CONFIG = {
-    VAPID_PUBLIC_KEY: 'BOhDSXfJT-FOU7p5vxMjNfoRtRv8b_LYe1pXvfm6c4m8M-l7-HrfGFOTMGyHTFFPhj3_fja-f9dXsELzlwrkMOU',
+    VAPID_PUBLIC_KEY: 'BLOuOmoSzI1ANUpUiTEVkEnBYfszZDPVgfiCgViC1EsMc3FULxsIaM3z4yFb74qthwL0b3LJt0YWySoJTSIe7Os',
     PUSH_API_ENDPOINT: 'https://backend.estoyqueloleo.workers.dev/push/subscribe',
     PUSH_SEND_ENDPOINT: 'https://backend.estoyqueloleo.workers.dev/push/send'
 };
@@ -110,7 +110,7 @@ async function subscribeToPushBackend(myPeerId, subscription, onStatusChange) {
     const auth = arrayBufferToBase64Url(subscription.getKey('auth'));
 
     const { state } = await import('./js/state.js');
-    
+
     const payload = {
         userPublicKey: myPeerId,
         salt: state.myIdentity.salt, // Necessary for TURN authentication
@@ -142,7 +142,7 @@ export async function sendPushPing(targetId, myAlias = 'Alguien', targetAlias = 
     const { state } = await import('./js/state.js');
     const title = '¡Pingo! 🔔';
     const body = `Hola ${targetAlias}, soy ${myAlias}. ¿Hablamos por el chat?`;
-    
+
     // El receptor debe conectar con el emisor (state.myPeerId)
     const url = `${window.location.origin}${window.location.pathname}?pingo=${state.myPeerId}&chat=1`;
 
@@ -153,7 +153,7 @@ export async function sendPushPing(targetId, myAlias = 'Alguien', targetAlias = 
         console.log(`[Push] Enviando aviso a ${targetId} (${targetAlias})`);
         const response = await fetch(`${PUSH_CONFIG.PUSH_SEND_ENDPOINT}/${targetId}?from=${state.myPeerId}`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'X-P2PT-Auth': token
             },

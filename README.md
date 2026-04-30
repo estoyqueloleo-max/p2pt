@@ -1,5 +1,7 @@
 # 🐧 P2PT - Real-time P2P Location
 
+**Live App**: [https://estoyqueloleo-max.github.io/p2pt/](https://estoyqueloleo-max.github.io/p2pt/)
+
 > [!TIP]
 > If you are going to synchronize your routes with a private server, check this guide on [Gitea and CORS](https://people.iola.dk/arj/2020/04/28/gitea-and-cors/) to configure access from the App.
 
