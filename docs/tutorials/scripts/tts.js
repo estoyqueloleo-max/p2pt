@@ -7,44 +7,67 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 
+const DOCKER_KOKORO_URL = 'http://localhost:8880/v1/audio/speech';
 const KOKORO_MODEL_PATH = '/home/jose/tts-stt/livekit/models/kokoro-v0_19.onnx';
 const KOKORO_VOICES_PATH = '/home/jose/tts-stt/livekit/models/voices-v1.0.bin';
 
 /**
  * Generate audio for a single voiceover string
  * @param {string} text - Voiceover text to synthesize
- * @param {string} outputPath - Destination .wav file
- * @param {string} voice - Voice profile (e.g. 'em_santa' or 'es_m' / 'es_f')
+ * @param {string} outputPath - Destination audio file
+ * @param {string} voice - Voice profile (e.g. 'em_alex' or 'ef_dora')
  */
-export async function generateSpeech(text, outputPath, voice = 'es_m') {
+export async function generateSpeech(text, outputPath, voice = 'em_alex') {
     const outputDir = path.dirname(outputPath);
     if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    console.log(`🎙️ [Kokoro TTS] Generando audio: "${text.substring(0, 45)}..."`);
+    console.log(`🎙️ [Kokoro TTS (${voice})] Generando audio: "${text.substring(0, 50)}..."`);
 
-    // Intentar generar con el script Python de Kokoro si el modelo ONNX existe
+    // 1. Método Principal: Conexión al contenedor Docker local (localhost:8880)
+    try {
+        const response = await fetch(DOCKER_KOKORO_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                input: text,
+                voice: voice,
+                model: 'kokoro',
+                speed: 1.0,
+                response_format: 'wav'
+            })
+        });
+
+        if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            if (buffer.length > 500) {
+                fs.writeFileSync(outputPath, buffer);
+                return outputPath;
+            }
+        }
+    } catch (e) {
+        // Si el contenedor Docker no responde, intentamos con ONNX local
+    }
+
+    // 2. Método Secundario: Kokoro ONNX nativo local
     if (fs.existsSync(KOKORO_MODEL_PATH) && fs.existsSync(KOKORO_VOICES_PATH)) {
         try {
             const pyScript = `
-import sys, os
-try:
-    from kokoro_onnx import Kokoro
-    import soundfile as sf
-    kokoro = Kokoro("${KOKORO_MODEL_PATH}", "${KOKORO_VOICES_PATH}")
-    samples, sample_rate = kokoro.create("""${text.replace(/"/g, '\\"')}""", voice="es_m", speed=1.0, lang="es")
-    sf.write("${outputPath}", samples, sample_rate)
-    print("OK")
-except Exception as e:
-    sys.exit(1)
+import sys
+from kokoro_onnx import Kokoro
+import soundfile as sf
+kokoro = Kokoro("${KOKORO_MODEL_PATH}", "${KOKORO_VOICES_PATH}")
+samples, sample_rate = kokoro.create("""${text.replace(/"/g, '\\"')}""", voice="${voice}", speed=1.0, lang="es")
+sf.write("${outputPath}", samples, sample_rate)
 `;
             execSync(`python3 -c '${pyScript}' 2>/dev/null`);
-            if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 100) {
+            if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 1000) {
                 return outputPath;
             }
         } catch (e) {
-            // Fallback a generación de audio sintético sincronizado
+            // Ignorar y pasar a fallback
         }
     }
 

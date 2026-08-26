@@ -39,9 +39,15 @@ if (args.includes('--chapter')) {
     }
 }
 
+let selectedVoice = 'ef_dora';
+if (args.includes('--voice')) {
+    selectedVoice = args[args.indexOf('--voice') + 1];
+}
+
 async function run() {
     console.log(`\n======================================================`);
     console.log(`  🎬 Pingo Masterclass & Video Tutorial Orchestrator  `);
+    console.log(`  🎙️ Voz Kokoro: ${selectedVoice}`);
     console.log(`======================================================\n`);
 
     mkdirSafe(VIDEOS_DIR);
@@ -53,12 +59,12 @@ async function run() {
         console.log(`------------------------------------------------------`);
 
         // 1. Generar segmentos de locución con Kokoro TTS
-        console.log(`\n🎙️ Paso 1: Generando locución con Kokoro TTS...`);
+        console.log(`\n🎙️ Paso 1: Generando locución con Kokoro TTS (${selectedVoice})...`);
         const segmentFiles = [];
         for (let i = 0; i < chapter.steps.length; i++) {
             const step = chapter.steps[i];
             const segPath = path.join(AUDIO_DIR, `${chapter.id}_step_${step.stepIndex}.wav`);
-            await generateSpeech(step.voiceover, segPath, 'es_m');
+            await generateSpeech(step.voiceover, segPath, selectedVoice);
             if (fs.existsSync(segPath)) {
                 segmentFiles.push(segPath);
             }
