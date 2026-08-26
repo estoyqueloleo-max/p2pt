@@ -3,7 +3,8 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './tests',
+  testDir: '.',
+  testMatch: ['tests/**/*.spec.js', 'docs/tutorials/scripts/**/*.spec.js'],
   fullyParallel: false, // Set to false to run P2P coordination step-by-step
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

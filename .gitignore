@@ -6,3 +6,6 @@ ios/
 .DS_Store
 test-results/
 playwright-report/
+docs/tutorials/videos/
+docs/tutorials/audio/
+docs/tutorials/final/
