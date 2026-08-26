@@ -1,5 +1,5 @@
 /**
- * P2PT - Route & Journal Management
+ * Pingo - Route & Journal Management
  */
 
 import { state, elements } from './state.js';
@@ -23,7 +23,7 @@ export async function initRouteManager() {
 async function loadLocalRoutes() {
     // In a real Git repo, we'd list files in the directory.
     // For now, we'll use a index file or just localStorage to track IDs.
-    const savedIds = JSON.parse(localStorage.getItem('p2pt_route_ids') || '[]');
+    const savedIds = JSON.parse(localStorage.getItem('pingo_route_ids') || '[]');
     state.routes = [];
     
     for (const id of savedIds) {
@@ -120,10 +120,10 @@ export async function saveRoute(name) {
         await commitRoute(routeId, routeData, `Initial record: ${routeData.name}`);
         
         // Update index if it's a new route
-        const savedIds = JSON.parse(localStorage.getItem('p2pt_route_ids') || '[]');
+        const savedIds = JSON.parse(localStorage.getItem('pingo_route_ids') || '[]');
         if (!savedIds.includes(routeId)) {
             savedIds.push(routeId);
-            localStorage.setItem('p2pt_route_ids', JSON.stringify(savedIds));
+            localStorage.setItem('pingo_route_ids', JSON.stringify(savedIds));
         }
         
         // Update state

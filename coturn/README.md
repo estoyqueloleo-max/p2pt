@@ -1,16 +1,22 @@
-# 📡 Coturn Configuration (TURN Relay)
+# 📡 Configuración de Coturn (Relé TURN)
 
-This directory contains the configuration necessary to deploy your own TURN server using Docker.
+Este directorio contiene la configuración necesaria para desplegar un servidor TURN propio usando Docker.
 
-## 🚀 Quick Start
-1. Ensure you have Docker installed.
-2. Run:
+## 🚀 Inicio Rápido
+1. Asegúrate de tener Docker instalado.
+2. Ejecuta:
    ```bash
    docker-compose up -d
    ```
 
-## ⚙️ Important Configuration
-- **`coturn.conf`**: Contains the port configuration and the `static-auth-secret`.
-- **Security**: The secret defined here MUST be the same as the one configured in the Cloudflare Worker (`TURN_STATIC_AUTH_SECRET`) for credential generation to work.
+## ⚙️ Configuración Importante
+- **`coturn.conf`**: Contiene la configuración de puertos y el `static-auth-secret`.
+- **Seguridad**: El secreto definido aquí DEBE ser el mismo que el configurado en el Cloudflare Worker (`TURN_STATIC_AUTH_SECRET`) para que la generación de credenciales funcione.
 
-For more details on full deployment, see the [backend README](../backend/README.md).
+Para más detalles sobre el despliegue completo, consulta el [README del backend](../backend/README.md).
+
+## 🏠 Servidor Ejecutable Autónomo en Go (Sin Docker)
+Si prefieres un único archivo ejecutable que incluya tanto el servidor TURN/STUN como la señalización PeerJS (sin necesidad de Docker ni dependencias externas), consulta el directorio [`../server/`](../server/README.md).
+
+## 🏠 Alternativas de Autoalojamiento Doméstico
+Para ver todas las opciones de despliegue en hogares para usuarios no técnicos (Binario Go con Pion TURN, Cloudflare Tunnels, CasaOS, Raspberry Pi), consulta la [Guía de Comunicación P2P (Sección 9)](../P2P.md#9-autoalojamiento-doméstico-opciones-para-servidores-peerjs-y-turn-en-casa).

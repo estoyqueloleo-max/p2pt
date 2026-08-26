@@ -1,376 +1,577 @@
 <!DOCTYPE html>
+
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
-    <title>P2PT - Pin & Go</title>
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
-    <!-- Styles -->
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="manifest" href="manifest.json">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" name="viewport"/>
+<title>%VITE_APP_TITLE%</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&amp;display=swap" rel="stylesheet"/>
+<!-- Styles -->
+<!-- Font Awesome -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
 </head>
-
 <body>
-    <div class="app-container">
-        <header>
-            <div class="logo">
-                <i class="fas fa-location-dot"></i>
-                <h1>P2PT <span id="app-version-header"
-                        style="font-size: 0.6rem; opacity: 0.5; font-weight: normal;">...</span></h1>
-            </div>
-            <div class="header-controls">
-                <div id="status-indicator" class="status-dot"></div>
-                <button id="install-pwa-btn" class="btn btn-primary btn-sm"
-                    style="display: none; margin-top: 0; width: auto; padding: 5px 10px;">
-                    <i class="fas fa-download"></i> Instalar
+<div class="app-container">
+<header>
+<div class="logo">
+<i class="fas fa-location-dot"></i>
+<h1>%VITE_APP_SHORT_NAME% <span id="app-version-header" style="font-size: 0.6rem; opacity: 0.5; font-weight: normal;">...</span></h1>
+</div>
+<div class="header-controls">
+<div class="status-dot" id="status-indicator"></div>
+<button class="icon-btn active" id="nav-network-btn" title="Red e Identidad"><i class="fas fa-network-wired"></i></button>
+<button class="icon-btn" id="nav-workspace-btn" title="Workspace &amp; Git"><i class="fas fa-laptop-code"></i></button>
+<button class="icon-btn" id="nav-comm-btn" title="Comunicación"><i class="fas fa-comments"></i> <span class="badge" id="chat-badge" style="display: none;"></span></button>
+<button class="icon-btn" id="nav-location-btn" title="Localización"><i class="fas fa-map-marked-alt"></i></button>
+
+<button class="btn btn-primary btn-sm" id="install-pwa-btn" style="display: none; margin-top: 0; width: auto; padding: 5px 10px;">
+<i class="fas fa-download"></i> Instalar
                 </button>
-                <button id="mode-standard-btn" class="icon-btn active" title="Modo Localización"><i class="fas fa-location-arrow"></i></button>
-                <button id="mode-cartography-btn" class="icon-btn" title="Modo Cartografía"><i class="fas fa-map-marked-alt"></i></button>
-                <button id="chat-btn" class="icon-btn" title="Chat">
-                    <i class="fas fa-comment-dots"></i>
-                    <span id="chat-badge" class="badge" style="display: none;"></span>
+
+
+
+<button class="icon-btn" id="btn-open-youtube" title="Abrir YouTube"><i class="fab fa-youtube" style="color: #ff0000;"></i></button>
+
+</div>
+</header>
+<main id="main-content" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative;"><div class="panel warning-panel" id="multi-tab-warning" style="display: none; background-color: rgba(255, 193, 7, 0.1); border-left: 4px solid #ffc107; margin-bottom: 0;">
+<p style="font-size: 0.8rem; margin: 0;"><i class="fas fa-triangle-exclamation"></i> <strong>Modo Pasivo:</strong> Otra pestaña tiene el control del GPS y P2P.</p>
+</div>
+<div class="workspace-panel panel" id="workspace-network" style="display: block;">
+<div class="id-display">
+<label>Tu ID de conexión</label>
+<div class="id-container">
+<code id="my-peer-id">Generando...</code>
+<button id="copy-id-btn" title="Copiar ID"><i class="far fa-copy"></i></button>
+</div>
+</div>
+<div class="actions">
+<button class="btn btn-primary" id="share-btn" style="margin-bottom: 8px;">
+<i class="fas fa-share-nodes"></i> Compartir mi ubicación
+                    </button>
+</div>
+<div class="divider"><span>MI IDENTIDAD</span></div>
+<button class="btn btn-outline btn-sm" id="toggle-identity-btn" style="width: 100%; margin-bottom: 8px;">
+<i class="fas fa-id-card"></i> Gestionar mi Identidad
                 </button>
-                <button id="btn-open-youtube" class="icon-btn" title="Abrir YouTube"><i class="fab fa-youtube" style="color: #ff0000;"></i></button>
-                <button id="panel-toggle" class="icon-btn" title="Configuración"><i class="fas fa-cog"></i></button>
-            </div>
-        </header>
-
-        <main id="settings-panel">
-            <div id="multi-tab-warning" class="panel warning-panel" style="display: none; background-color: rgba(255, 193, 7, 0.1); border-left: 4px solid #ffc107; margin-bottom: 0;">
-                <p style="font-size: 0.8rem; margin: 0;"><i class="fas fa-triangle-exclamation"></i> <strong>Modo Pasivo:</strong> Otra pestaña tiene el control del GPS y P2P.</p>
-            </div>
-
-            <div id="global-search-section">
-                <div class="divider"><span>SEMÁNTICA & BÚSQUEDA</span></div>
-                <div class="actions" style="flex-direction: column; gap: 8px; margin-bottom: 15px;">
-                    <button id="index-vectors-btn" class="btn btn-outline btn-sm" style="width: 100%;">
-                        <i class="fas fa-brain"></i> Indexar Contenido (IA)
+<div class="inline-form" id="identity-form" style="display: none;">
+<div class="input-group-row" style="margin-bottom: 10px;">
+<input class="input-sm" id="identity-alias" placeholder="Tu nombre o alias..." style="flex: 1;" type="text"/>
+</div>
+<div class="input-group-row">
+<input class="input-sm" id="identity-phrase" placeholder="Tu frase secreta..." style="flex: 2;" type="password"/>
+<input class="input-sm" id="identity-salt" placeholder="Sal" style="flex: 1;" type="text"/>
+</div>
+<div class="form-actions-row" style="margin-top: 10px;">
+<button class="btn btn-outline btn-sm" id="cancel-identity-btn">Cancelar</button>
+<button class="btn btn-primary btn-sm" id="save-identity-btn">Fijar Identidad</button>
+</div>
+<p class="small-hint">Usa la misma frase y sal en otro móvil para recuperar tu ID.</p>
+</div>
+<div class="divider"><span>COPIA DE SEGURIDAD</span></div>
+<div class="actions-row" style="display: flex; gap: 8px; margin-bottom: 10px;">
+<button class="btn btn-outline btn-sm" id="export-backup-btn" style="flex: 1;">
+<i class="fas fa-file-export"></i> Exportar
                     </button>
-                    <div id="vector-index-progress" style="display: none; width: 100%;">
-                        <div class="progress-bar-bg" style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 5px;">
-                            <div id="vector-index-bar" style="background: var(--primary); height: 100%; width: 0%; transition: width 0.3s;"></div>
-                        </div>
-                        <p id="vector-index-status" class="small-hint" style="margin-top: 5px; text-align: center; font-size: 0.7rem;">Preparando motor...</p>
-                    </div>
-                    <div class="search-bar" style="width: 100%; position: relative;">
-                        <input type="text" id="semantic-search-input" placeholder="Búsqueda por significado..." class="input-sm" style="width: 100%; padding-left: 30px;">
-                        <i class="fas fa-search" style="position: absolute; left: 10px; top: 8px; opacity: 0.5; font-size: 0.8rem;"></i>
-                    </div>
-                </div>
-            </div>
-            <div id="connection-panel" class="panel agenda-panel">
-                <div class="id-display">
-                    <label>Tu ID de conexión</label>
-                    <div class="id-container">
-                        <code id="my-peer-id">Generando...</code>
-                        <button id="copy-id-btn" title="Copiar ID"><i class="far fa-copy"></i></button>
-                    </div>
-                </div>
-
-                <div class="actions">
-                    <button id="share-btn" class="btn btn-primary">
-                        <i class="fas fa-share-nodes"></i> Compartir mi ubicación
+<button class="btn btn-outline btn-sm" id="import-backup-btn" style="flex: 1;">
+<i class="fas fa-file-import"></i> Importar
                     </button>
-                </div>
-
-                <div class="divider"><span>MI IDENTIDAD</span></div>
-                <button id="toggle-identity-btn" class="btn btn-outline btn-sm"
-                    style="width: 100%; margin-bottom: 8px;">
-                    <i class="fas fa-id-card"></i> Gestionar mi Identidad
-                </button>
-                <div id="identity-form" class="inline-form" style="display: none;">
-                    <div class="input-group-row" style="margin-bottom: 10px;">
-                        <input type="text" id="identity-alias" placeholder="Tu nombre o alias..." class="input-sm" style="flex: 1;">
+</div>
+<input accept=".json" id="import-file-input" style="display: none;" type="file"/>
+<div class="divider"><span>MIS PINGOS (AGENDA)</span></div>
+<!-- Formulario Inline para Añadir (Oculto por defecto) -->
+<div class="inline-form" id="add-contact-form" style="display: none;">
+<div style="margin-bottom: 12px; font-size: 0.8rem; color: var(--text-dim); background: rgba(99, 102, 241, 0.1); padding: 8px; border-radius: 8px; border-left: 2px solid var(--primary); pointer-events: none;">
+<i class="fas fa-info-circle"></i> <strong>Tip:</strong> Deja el ID vacío para generarlo automáticamente usando la Frase + Sal de tu contacto.
                     </div>
-                    <div class="input-group-row">
-                        <input type="password" id="identity-phrase" placeholder="Tu frase secreta..." class="input-sm"
-                            style="flex: 2;">
-                        <input type="text" id="identity-salt" placeholder="Sal" class="input-sm" style="flex: 1;">
-                    </div>
-                    <div class="form-actions-row" style="margin-top: 10px;">
-                        <button id="cancel-identity-btn" class="btn btn-outline btn-sm">Cancelar</button>
-                        <button id="save-identity-btn" class="btn btn-primary btn-sm">Fijar Identidad</button>
-                    </div>
-                    <p class="small-hint">Usa la misma frase y sal en otro móvil para recuperar tu ID.</p>
-                </div>
-
-                <div class="divider"><span>COPIA DE SEGURIDAD</span></div>
-                <div class="actions-row" style="display: flex; gap: 8px; margin-bottom: 10px;">
-                    <button id="export-backup-btn" class="btn btn-outline btn-sm" style="flex: 1;">
-                        <i class="fas fa-file-export"></i> Exportar
-                    </button>
-                    <button id="import-backup-btn" class="btn btn-outline btn-sm" style="flex: 1;">
-                        <i class="fas fa-file-import"></i> Importar
-                    </button>
-                </div>
-                <input type="file" id="import-file-input" style="display: none;" accept=".json">
-
-                <div class="divider"><span>MIS P2PT (AGENDA)</span></div>
-
-                <!-- Formulario Inline para Añadir (Oculto por defecto) -->
-                <div id="add-contact-form" class="inline-form" style="display: none;">
-                    <div style="margin-bottom: 12px; font-size: 0.8rem; color: var(--text-dim); background: rgba(99, 102, 241, 0.1); padding: 8px; border-radius: 8px; border-left: 2px solid var(--primary); pointer-events: none;">
-                        <i class="fas fa-info-circle"></i> <strong>Tip:</strong> Deja el ID vacío para generarlo automáticamente usando la Frase + Sal de tu contacto.
-                    </div>
-                    <input type="text" id="contact-name" placeholder="Nombre (ej: Hijo)" class="input-sm">
-                    <input type="password" id="contact-phrase" placeholder="Frase Secreta (opcional)" class="input-sm">
-                    <input type="text" id="contact-salt" placeholder="Sal de Seguridad (opcional)" class="input-sm">
-                    <input type="text" id="contact-id" placeholder="ID de conexión (manual)" class="input-sm">
-                    <div class="form-actions-row">
-                        <button id="cancel-contact-btn" class="btn btn-outline btn-sm">Cancelar</button>
-                        <button id="save-contact-btn" class="btn btn-primary btn-sm">Guardar</button>
-                    </div>
-                </div>
-
-                <div id="agenda-container" class="agenda-list">
-                    <!-- Contacts will be injected here -->
-                    <p id="empty-agenda-hint" class="small-hint" style="text-align: center; padding: 10px;">Tu agenda
+<input class="input-sm" id="contact-name" placeholder="Nombre (ej: Hijo)" type="text"/>
+<input class="input-sm" id="contact-phrase" placeholder="Frase Secreta (opcional)" type="password"/>
+<input class="input-sm" id="contact-salt" placeholder="Sal de Seguridad (opcional)" type="text"/>
+<input class="input-sm" id="contact-id" placeholder="ID de conexión (manual)" type="text"/>
+<div class="form-actions-row">
+<button class="btn btn-outline btn-sm" id="cancel-contact-btn">Cancelar</button>
+<button class="btn btn-primary btn-sm" id="save-contact-btn">Guardar</button>
+</div>
+</div>
+<div class="agenda-list" id="agenda-container">
+<!-- Contacts will be injected here -->
+<p class="small-hint" id="empty-agenda-hint" style="text-align: center; padding: 10px;">Tu agenda
                         está vacía.</p>
-                </div>
-                <button id="add-contact-btn" class="btn btn-outline btn-sm" style="margin-top: 5px; width: 100%;">
-                    <i class="fas fa-user-plus"></i> Añadir a la Agenda
+</div>
+<button class="btn btn-outline btn-sm" id="add-contact-btn" style="margin-top: 5px; width: 100%;">
+<i class="fas fa-user-plus"></i> Añadir a la Agenda
                 </button>
 
-                <div class="divider"><span>GEOVALLA</span></div>
-                <div class="geofence-container">
-                    <div class="geofence-row-inline">
-                        <label>Zona segura activa</label>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span id="remote-geofence-badge"
-                                style="display: none; font-size: 0.65rem; background: var(--primary); padding: 2px 6px; border-radius: 4px;">REMOTA</span>
-                            <label class="switch">
-                                <input type="checkbox" id="geofence-toggle">
-                                <span class="slider round"></span>
-                            </label>
+
+
+
+
+
+<div class="divider"><span>DEMOS Y TOURS INTERACTIVOS</span></div>
+<div class="tours-grid" id="tours-grid">
+    <button class="tour-card-btn" id="start-tour-identity-btn" type="button">
+        <div class="tour-card-icon"><i class="fas fa-id-badge"></i></div>
+        <div class="tour-card-text">
+            <span class="tour-card-num">Demo 1</span>
+            <span class="tour-card-title">Identidad & Agenda</span>
+        </div>
+    </button>
+    <button class="tour-card-btn" id="start-tour-routes-btn" type="button">
+        <div class="tour-card-icon"><i class="fas fa-route"></i></div>
+        <div class="tour-card-text">
+            <span class="tour-card-num">Demo 2</span>
+            <span class="tour-card-title">Rutas & Git Local</span>
+        </div>
+    </button>
+    <button class="tour-card-btn" id="start-tour-geofence-btn" type="button">
+        <div class="tour-card-icon"><i class="fas fa-shield-halved"></i></div>
+        <div class="tour-card-text">
+            <span class="tour-card-num">Demo 3</span>
+            <span class="tour-card-title">Geovalla & Mapa</span>
+        </div>
+    </button>
+    <button class="tour-card-btn" id="start-tour-comm-btn" type="button">
+        <div class="tour-card-icon"><i class="fas fa-comments"></i></div>
+        <div class="tour-card-text">
+            <span class="tour-card-num">Demo 4</span>
+            <span class="tour-card-title">Chat Mesh & IA</span>
+        </div>
+    </button>
+    <button class="tour-card-btn" id="start-tour-servers-btn" type="button">
+        <div class="tour-card-icon"><i class="fas fa-server"></i></div>
+        <div class="tour-card-text">
+            <span class="tour-card-num">Demo 5</span>
+            <span class="tour-card-title">Servidores & Relé</span>
+        </div>
+    </button>
+</div>
+<div class="divider"><span>GUÍA Y MANUAL DE USUARIO</span></div>
+<div class="guide-accordion" id="guide-accordion">
+<p class="small-hint" style="text-align: center; padding: 20px;">Cargando guía de usuario...</p>
+</div>
+</div>
+<div class="workspace-panel panel" id="workspace-editor" style="display: none;">
+    <div class="working-copy-banner" id="working-copy-banner" style="display: none;">
+        <div class="wc-content">
+            <i class="fas fa-edit pulse-edit"></i>
+            <span>Copia: <strong id="working-copy-name">...</strong></span>
+            <button class="btn btn-primary btn-xs" id="edit-working-copy-btn" style="margin-left: 10px; width: auto; padding: 2px 8px; display: none;">
+                <i class="fas fa-pen"></i> Editar
+            </button>
+        </div>
+        <button class="icon-btn btn-xs" id="unload-working-copy-btn" title="Cerrar Copia de Trabajo">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <div class="divider"><span>GUARDAR INFORMACIÓN</span></div>
+    <div class="actions" style="display: flex; flex-direction: column; gap: 8px;">
+        <div class="actions-row" style="display: flex; gap: 8px; width: 100%;">
+            <button class="btn btn-success" id="start-recording-btn" style="flex: 1;">
+                <i class="fas fa-play"></i> Iniciar Grabación
+            </button>
+            <button class="btn btn-danger" id="stop-recording-btn" style="display: none; flex: 1;">
+                <i class="fas fa-stop"></i> Detener y Guardar
+            </button>
+        </div>
+        <button class="btn btn-primary" id="create-note-btn" style="width: 100%;">
+            <i class="fas fa-plus-circle"></i> Nueva Nota
+        </button>
+    </div>
+
+    <!-- Diálogo para guardar ruta -->
+    <div class="inline-form" id="save-route-form" style="display: none; margin-top: 15px; border: 1px solid var(--success);">
+        <label style="font-size: 0.8rem; opacity: 0.7;">Nombre de la ruta</label>
+        <input class="input-sm" id="route-name-input" placeholder="Mi ruta hoy..." type="text"/>
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+            <input checked="" id="route-visibility-toggle" type="checkbox"/>
+            <label for="route-visibility-toggle" style="font-size: 0.8rem; margin: 0; opacity: 0.8; cursor: pointer;">Público (Indexable por peers)</label>
+        </div>
+        <div class="form-actions-row" style="margin-top: 10px;">
+            <button class="btn btn-outline btn-sm" id="cancel-route-btn">Descartar</button>
+            <button class="btn btn-primary btn-sm" id="save-route-confirm-btn">Guardar en Git</button>
+        </div>
+    </div>
+
+    <div class="divider"><span>SINCRONIZACIÓN REMOTA (GIT)</span></div>
+    <div class="inline-form" id="git-remote-config" style="margin-bottom: 15px;">
+        <div style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 8px;">
+            Configura un repositorio remoto (Gitea / GitHub) para tus rutas y notas.
+        </div>
+        <input class="input-sm" id="git-remote-url" placeholder="https://gitea.com/user/pingo-routes" type="text"/>
+        <div class="input-group-row" style="display: flex; gap: 8px; margin-top: 8px;">
+            <input class="input-sm" id="git-username" placeholder="Usuario" style="flex: 1;" type="text"/>
+            <input class="input-sm" id="git-token" placeholder="Token / Pass" style="flex: 1;" type="password"/>
+        </div>
+        <div class="actions-row" style="display: flex; gap: 8px; margin-top: 10px;">
+            <button class="btn btn-outline btn-sm" id="git-pull-btn" style="flex: 1;">
+                <i class="fas fa-cloud-download-alt"></i> Bajar ⬇️
+            </button>
+            <button class="btn btn-primary btn-sm" id="git-push-btn" style="flex: 1;">
+                <i class="fas fa-cloud-upload-alt"></i> Subir ⬆️
+            </button>
+        </div>
+        <button class="btn btn-danger btn-sm" id="git-clear-btn" style="margin-top: 8px; background-color: #334155; opacity: 0.8;">
+            <i class="fas fa-trash-alt"></i> Borrar Repo Local 🗑️
+        </button>
+    </div>
+
+    <div class="divider"><span>MIS RUTAS (GIT REPO)</span></div>
+    <button class="btn btn-outline btn-sm" id="view-gitgraph-btn" style="margin-bottom: 10px; width: 100%;">
+        <i class="fas fa-code-branch"></i> Ver Grafo de Commits
+    </button>
+    <div id="routes-container" class="agenda-list">
+        <p class="small-hint" style="text-align: center; padding: 10px;">No tienes rutas guardadas.</p>
+    </div>
+</div>
+
+<div class="workspace-panel panel" id="workspace-comm" style="display: none;"><div class="video-container" id="video-container" style="display: flex; flex: 1; flex-wrap: wrap;">
+<!-- Local and remote videos will be injected here -->
+</div><div class="chat-panel" id="chat-panel" style="flex: 1;">
+<div class="chat-header">
+<h3 id="chat-title"><i class="fas fa-comments"></i> Chat P2P</h3>
+<div style="display: flex; gap: 8px;">
+<button class="icon-btn" id="share-camera-btn" title="Compartir Cámara"><i class="fas fa-video"></i></button>
+<button class="icon-btn" id="share-screen-btn" title="Compartir Pantalla"><i class="fas fa-desktop"></i></button>
+<button class="icon-btn" id="close-chat-btn"><i class="fas fa-times"></i></button>
+</div>
+</div>
+<div class="chat-messages" id="chat-messages">
+<p class="chat-hint">Conecta con alguien para empezar a chatear...</p>
+</div>
+</div><div id="global-search-section">
+<div class="divider"><span>BÚSQUEDA HÍBRIDA P2P</span></div>
+<div class="actions" style="flex-direction: column; gap: 8px; margin-bottom: 15px;">
+<div style="display: flex; gap: 10px; margin-bottom: 5px;">
+<label style="font-size: 0.8rem; display: flex; align-items: center; gap: 5px;">
+<input checked="" id="search-type-exact" name="search-type" type="radio" value="exact"/> Exacta
+                        </label>
+<label style="font-size: 0.8rem; display: flex; align-items: center; gap: 5px;">
+<input id="search-type-semantic" name="search-type" type="radio" value="semantic"/> Semántica (IA)
+                        </label>
+</div>
+<div class="search-bar" style="width: 100%; position: relative;">
+<input class="input-sm" id="semantic-search-input" placeholder="Buscar en mi red..." style="width: 100%; padding-left: 30px;" type="text"/>
+<i class="fas fa-search" style="position: absolute; left: 10px; top: 8px; opacity: 0.5; font-size: 0.8rem;"></i>
+</div>
+<button class="btn btn-outline btn-sm" id="index-vectors-btn" style="width: 100%;">
+<i class="fas fa-brain"></i> Re-indexar Contenido
+                    </button>
+<div id="vector-index-progress" style="display: none; width: 100%;">
+<div class="progress-bar-bg" style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 5px;">
+<div id="vector-index-bar" style="background: var(--primary); height: 100%; width: 0%; transition: width 0.3s;"></div>
+</div>
+<p class="small-hint" id="vector-index-status" style="margin-top: 5px; text-align: center; font-size: 0.7rem;">Preparando motor...</p>
+</div>
+</div>
+<div class="divider"><span>PRIVACIDAD DE BÚSQUEDA</span></div>
+<div class="geofence-row-inline" style="margin-bottom: 10px;">
+<label style="font-size: 0.8rem;">Responder búsquedas exactas</label>
+<label class="switch">
+<input id="allow-exact-search-toggle" type="checkbox"/>
+<span class="slider round"></span>
+</label>
+</div>
+<div class="geofence-row-inline" style="margin-bottom: 15px;">
+<label style="font-size: 0.8rem;">Responder búsquedas semánticas</label>
+<label class="switch">
+<input id="allow-semantic-search-toggle" type="checkbox"/>
+<span class="slider round"></span>
+</label>
+</div>
+<div class="divider"><span>BÚSQUEDAS EN LA RED</span></div>
+<div class="agenda-list" id="search-history-container" style="max-height: 150px; overflow-y: auto;">
+<p class="small-hint" style="text-align: center; padding: 10px;">Nadie ha buscado nada aún.</p>
+</div>
+</div></div>
+<div class="workspace-panel" id="workspace-location" style="display: none; height: 100%; position: relative;">
+    <div id="map"></div>
+    
+    <!-- Panel Flotante de Controles y Geovalla -->
+    <div class="location-controls-panel" id="location-controls-panel">
+        <div class="location-controls-header" id="toggle-location-controls-btn">
+            <span><i class="fas fa-sliders-h" style="color: var(--primary); margin-right: 6px;"></i> Controles & Geovalla</span>
+            <i class="fas fa-chevron-down chevron" id="location-controls-chevron"></i>
+        </div>
+        <div class="location-controls-body" id="location-controls-body">
+            <div class="divider" style="margin: 5px 0 10px 0;"><span>GEOVALLA</span></div>
+            <div class="geofence-container">
+                <div class="geofence-row-inline">
+                    <label>Zona segura activa</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="remote-geofence-badge" style="display: none; font-size: 0.65rem; background: var(--primary); padding: 2px 6px; border-radius: 4px;">REMOTA</span>
+                        <label class="switch">
+                            <input id="geofence-toggle" type="checkbox"/>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="geofence-row">
+                    <label>Radio de la zona: <span id="geofence-radius-val">100</span>m</label>
+                    <input id="geofence-radius" max="1000" min="50" step="50" style="width: 100%;" type="range" value="100"/>
+                </div>
+                <button class="btn btn-outline btn-sm" id="set-geofence-center">
+                    <i class="fas fa-crosshairs"></i> Centrar en mi posición
+                </button>
+            </div>
+
+            <div class="divider" style="margin: 10px 0;"><span>RED Y PERSISTENCIA</span></div>
+            <div class="geofence-row-inline">
+                <label>Servicios en la Nube (Relay/Push)</label>
+                <label class="switch">
+                    <input id="cloud-services-toggle" type="checkbox"/>
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <div class="geofence-row-inline">
+                <label>Modo Persistente (Segundo Plano)</label>
+                <label class="switch">
+                    <input id="persistence-toggle" type="checkbox"/>
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <button class="btn btn-outline btn-sm" id="open-server-config-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fas fa-server"></i> Servidores Personalizados (P2P / TURN)
+            </button>
+            
+            <div class="actions" style="display: flex; gap: 8px; flex-direction: column; margin-top: 5px;">
+                <button class="btn btn-danger btn-sm" id="stop-sharing-btn" style="display: flex; background-color: var(--danger);">
+                    <i class="fas fa-stop-circle"></i> Dejar de compartir
+                </button>
+                <button class="btn btn-danger btn-sm" id="force-reset-btn" style="opacity: 0.85;">
+                    <i class="fas fa-sync-alt"></i> Forzar Actualización (Caché)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="recording-hud" id="recording-hud" style="display: none;">
+        <div class="pulse-red"></div>
+        <div class="rec-info">
+            <span class="rec-label">REC</span>
+            <span class="rec-timer" id="recording-timer">0:00</span>
+            <span class="rec-stats">
+                <i class="fas fa-location-dot"></i> <span id="recording-points-count">0</span> pts
+            </span>
+        </div>
+    </div>
+</div>
+</main></div>
+
+
+<!-- Panel de Chat -->
+
+<footer id="main-footer">
+<!-- Modo Estado (Default) -->
+<div class="footer-content" id="footer-status-mode">
+<div id="location-status">
+<i class="fas fa-crosshairs"></i> Obteniendo ubicación...
+            </div>
+<button class="btn btn-outline btn-xs" id="manual-location-btn" style="display: none; margin-left: 10px;">
+<i class="fas fa-hand-pointer"></i> Fijar manual
+            </button>
+</div>
+<!-- Modo Chat (Activo) -->
+<div class="footer-content chat-active-footer" id="footer-chat-mode" style="display: none;">
+<button class="icon-btn" id="exit-chat-btn" title="Cerrar Chat">
+<i class="fas fa-chevron-left"></i>
+</button>
+<div class="chat-input-bar">
+<button class="icon-btn" id="share-active-route-btn" style="color: var(--primary); padding: 0 10px;" title="Compartir última ruta">
+<i class="fas fa-folder-plus"></i>
+</button>
+<input autocomplete="off" id="chat-input" placeholder="Escribe un mensaje..." type="text"/>
+<button class="btn-send" id="send-chat-btn">
+<i class="fas fa-paper-plane"></i>
+</button>
+</div>
+</div>
+</footer>
+
+<!-- Modal de Confirmación Custom (para evitar problemas con confirm() nativo) -->
+<div class="modal-overlay" id="confirm-modal" style="display: none;">
+<div class="modal-content">
+<div class="modal-header">
+<i class="fas fa-question-circle modal-icon"></i>
+<h3 id="confirm-modal-title">Confirmación</h3>
+</div>
+<div class="modal-body">
+<p id="confirm-modal-message">¿Estás seguro?</p>
+</div>
+<div class="modal-footer">
+<button class="btn btn-outline" id="confirm-modal-cancel">Cancelar</button>
+<button class="btn btn-primary" id="confirm-modal-ok">Aceptar</button>
+</div>
+</div>
+</div>
+<!-- Modal de Detalles de Conexión -->
+<div class="modal-overlay" id="conn-stats-modal" style="display: none;">
+<div class="modal-content" style="max-width: 90%; width: 400px;">
+<div class="modal-header">
+<i class="fas fa-network-wired modal-icon"></i>
+<h3 id="conn-stats-title">Estado de Conexión</h3>
+</div>
+<div class="modal-body" style="padding: 20px 15px;">
+<div class="conn-viz" id="conn-stats-viz">
+<!-- Viz will be injected here -->
+</div>
+<div class="conn-details" id="conn-stats-details" style="margin-top: 20px; font-size: 0.85rem; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
+<!-- Stats will be injected here -->
+</div>
+</div>
+<div class="modal-footer">
+<button class="btn btn-primary" id="conn-stats-close">Cerrar</button>
+</div>
+</div>
+</div>
+<!-- Modal de Edición de Notas/Archivos (Oculto por defecto) -->
+<div class="modal-overlay" id="text-editor-container" style="display: none; z-index: 10000;">
+    <div class="modal-content" style="max-width: 92vw; width: 500px; height: 80vh; display: flex; flex-direction: column;">
+        <div class="modal-header">
+            <i class="fas fa-file-alt modal-icon"></i>
+            <h3 id="editor-title" style="margin: 0;">Editar Archivo</h3>
+        </div>
+        <div class="modal-body" style="flex: 1; display: flex; flex-direction: column; padding: 10px;">
+            <textarea id="text-editor-textarea" style="flex: 1; width: 100%; font-family: monospace; font-size: 0.9rem; resize: none; border: 1px solid var(--primary); border-radius: 8px; padding: 10px; background: rgba(15, 23, 42, 0.9); color: var(--text-light);"></textarea>
+        </div>
+        <div class="modal-footer" style="padding: 10px; display: flex; gap: 10px; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <input checked="" id="editor-visibility-toggle" type="checkbox"/>
+                <label for="editor-visibility-toggle" style="font-size: 0.8rem; margin: 0; opacity: 0.8; cursor: pointer;">Público (Indexable)</label>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-outline btn-sm" id="close-editor-btn" style="width: auto;">Cancelar</button>
+                <button class="btn btn-primary btn-sm" id="save-editor-btn" style="width: auto;">Guardar en Git</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Git Graph -->
+<div class="modal-overlay" id="gitgraph-modal" style="display: none;">
+<div class="modal-content" style="max-width: 95%; width: 800px; height: 85vh; display: flex; flex-direction: column;">
+<div class="modal-header">
+<i class="fas fa-code-branch modal-icon"></i>
+<h3 id="gitgraph-title">Árbol de Commits</h3>
+</div>
+<div class="modal-body" style="flex: 1; overflow-y: auto; overflow-x: auto; padding: 10px;">
+<div id="gitgraph-container" style="min-height: 100%; min-width: 100%;"></div>
+</div>
+<div class="modal-footer">
+<button class="btn btn-primary" id="gitgraph-close">Cerrar</button>
+</div>
+</div>
+</div>
+
+<!-- Modal de Configuración de Servidores -->
+<div class="modal-overlay" id="server-config-modal" style="display: none; z-index: 10000;">
+    <div class="modal-content" style="max-width: 92%; width: 550px; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header">
+            <i class="fas fa-server modal-icon"></i>
+            <h3 style="margin: 0;">Servidores de Red & Relé</h3>
+        </div>
+        <div class="modal-body" style="overflow-y: auto; padding: 15px; flex: 1; display: flex; flex-direction: column; gap: 15px;">
+            <p class="small-hint" style="margin-top: 0;">Configura servidores de señalización PeerJS y relés STUN/TURN propios (ej. binario Go de Pingo o Coturn).</p>
+            
+            <div class="server-config-group" style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.1));">
+                <h4 style="margin: 0 0 10px 0; font-size: 0.9rem; color: var(--primary);"><i class="fas fa-satellite-dish"></i> Señalización (PeerJS)</h4>
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom: 8px;">
+                    <div>
+                        <label style="font-size: 0.75rem; color: var(--text-muted);">Host / Dominio / IP</label>
+                        <input type="text" id="server-signaling-host" placeholder="peerjs-server.accreativos.com" style="width: 100%; font-size: 0.85rem;" />
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; color: var(--text-muted);">Puerto</label>
+                        <input type="number" id="server-signaling-port" placeholder="443" style="width: 100%; font-size: 0.85rem;" />
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center;">
+                    <div>
+                        <label style="font-size: 0.75rem; color: var(--text-muted);">Ruta (Path)</label>
+                        <input type="text" id="server-signaling-path" placeholder="/" style="width: 100%; font-size: 0.85rem;" />
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 14px;">
+                        <input type="checkbox" id="server-signaling-secure" style="cursor: pointer;" />
+                        <label for="server-signaling-secure" style="font-size: 0.8rem; cursor: pointer;">Seguro (SSL / WSS)</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="server-config-group" style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.1));">
+                <h4 style="margin: 0 0 10px 0; font-size: 0.9rem; color: var(--primary);"><i class="fas fa-route"></i> Relé TURN / STUN (Opcional)</h4>
+                <div style="margin-bottom: 8px;">
+                    <label style="font-size: 0.75rem; color: var(--text-muted);">URLs TURN / STUN (separadas por comas)</label>
+                    <input type="text" id="server-turn-urls" placeholder="turn:mi-servidor.duckdns.org:3478?transport=udp" style="width: 100%; font-size: 0.85rem;" />
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <div>
+                        <label style="font-size: 0.75rem; color: var(--text-muted);">Usuario TURN</label>
+                        <input type="text" id="server-turn-user" placeholder="pingo" style="width: 100%; font-size: 0.85rem;" />
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; color: var(--text-muted);">Contraseña / Secreto</label>
+                        <div style="position: relative; display: flex; align-items: center;">
+                            <input type="password" id="server-turn-pass" placeholder="••••••••" style="width: 100%; font-size: 0.85rem; padding-right: 32px;" autocomplete="new-password" />
+                            <button type="button" id="toggle-turn-pass-btn" style="position: absolute; right: 4px; background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px 6px; font-size: 0.8rem;" title="Mostrar / Ocultar secreto">
+                                <i class="fas fa-eye" id="toggle-turn-pass-icon"></i>
+                            </button>
                         </div>
                     </div>
-                    <div class="geofence-row">
-                        <label>Radio de la zona: <span id="geofence-radius-val">100</span>m</label>
-                        <input type="range" id="geofence-radius" min="50" max="1000" step="50" value="100"
-                            style="width: 100%;">
-                    </div>
-                    <button id="set-geofence-center" class="btn btn-outline btn-sm">
-                        <i class="fas fa-crosshairs"></i> Centrar en mi posición
-                    </button>
-                </div>
-
-                <div class="divider"><span>SISTEMA</span></div>
-                <div class="geofence-row-inline" style="margin-bottom: 15px;">
-                    <label>Servicios en la Nube (Relay/Push)</label>
-                    <label class="switch">
-                        <input type="checkbox" id="cloud-services-toggle">
-                        <span class="slider round"></span>
-                    </label>
-                </div>
-                <div class="geofence-row-inline" style="margin-bottom: 15px;">
-                    <label>Modo Persistente (Segundo Plano)</label>
-                    <label class="switch">
-                        <input type="checkbox" id="persistence-toggle">
-                        <span class="slider round"></span>
-                    </label>
-                </div>
-                <div class="actions" style="display: flex; gap: 10px; flex-direction: column;">
-                    <button id="stop-sharing-btn" class="btn btn-danger btn-sm"
-                        style="display: flex; background-color: var(--danger);">
-                        <i class="fas fa-stop-circle"></i> Dejar de compartir
-                    </button>
-                    <button id="force-reset-btn" class="btn btn-danger btn-sm" style="opacity: 0.8;">
-                        <i class="fas fa-sync-alt"></i> Forzar Actualización (Caché)
-                    </button>
-                </div>
-
-                <div class="divider"><span>GUÍA Y SOPORTE</span></div>
-                <div id="guide-accordion" class="guide-accordion">
-                    <p class="small-hint" style="text-align: center; padding: 20px;">Cargando guía de usuario...</p>
                 </div>
             </div>
 
-            <!-- Panel de Rutas (Cartografía) -->
-            <div id="routes-panel" class="panel" style="display: none;">
-                <div class="divider"><span>REC: DIARIO DE RUTA</span></div>
-                <div class="actions">
-                    <button id="start-recording-btn" class="btn btn-success">
-                        <i class="fas fa-play"></i> Iniciar Grabación
-                    </button>
-                    <button id="stop-recording-btn" class="btn btn-danger" style="display: none;">
-                        <i class="fas fa-stop"></i> Detener y Guardar
-                    </button>
-                </div>
-
-                <!-- Diálogo para guardar ruta -->
-                <div id="save-route-form" class="inline-form" style="display: none; margin-top: 15px; border: 1px solid var(--success);">
-                    <label style="font-size: 0.8rem; opacity: 0.7;">Nombre de la ruta</label>
-                    <input type="text" id="route-name-input" placeholder="Mi ruta hoy..." class="input-sm">
-                    <div class="form-actions-row" style="margin-top: 10px;">
-                        <button id="cancel-route-btn" class="btn btn-outline btn-sm">Descartar</button>
-                        <button id="save-route-confirm-btn" class="btn btn-primary btn-sm">Guardar en Git</button>
-                    </div>
-                </div>
-
-                <div class="divider"><span>SINCRONIZACIÓN REMOTA</span></div>
-                <div id="git-remote-config" class="inline-form" style="margin-bottom: 15px;">
-                    <div style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 8px;">
-                        Configura un repositorio externo (Gitea/GitHub) para backup.
-                    </div>
-                    <input type="text" id="git-remote-url" placeholder="https://gitea.com/user/pingo-routes" class="input-sm">
-                    <div style="display: flex; gap: 8px; margin-top: 8px;">
-                        <input type="text" id="git-username" placeholder="Usuario" class="input-sm" style="flex: 1;">
-                        <input type="password" id="git-token" placeholder="Token / Pass" class="input-sm" style="flex: 1;">
-                    </div>
-                    <div style="display: flex; gap: 8px; margin-top: 10px;">
-                        <button id="git-pull-btn" class="btn btn-outline btn-sm" style="flex: 1;">
-                            <i class="fas fa-cloud-download-alt"></i> Bajar ⬇️
-                        </button>
-                        <button id="git-push-btn" class="btn btn-primary btn-sm" style="flex: 1;">
-                            <i class="fas fa-cloud-upload-alt"></i> Subir ⬆️
-                        </button>
-                    </div>
-                    <button id="git-clear-btn" class="btn btn-danger btn-sm" style="margin-top: 8px; background-color: #334155; opacity: 0.8;">
-                        <i class="fas fa-trash-alt"></i> Borrar Repo Local 🗑️
-                    </button>
-                </div>
-                </div>
-
-                <div class="divider"><span>MIS RUTAS (GIT REPO)</span></div>
-                <div id="routes-container" class="agenda-list">
-                    <!-- Routes will be injected here -->
-                    <p class="small-hint" style="text-align: center; padding: 10px;">No tienes rutas guardadas.</p>
+            <div class="server-config-group" style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.1));">
+                <h4 style="margin: 0 0 10px 0; font-size: 0.9rem; color: var(--primary);"><i class="fas fa-cloud"></i> Servicios Backend / Cloud (Opcional)</h4>
+                <div>
+                    <label style="font-size: 0.75rem; color: var(--text-muted);">API Endpoint (Push / Tokens)</label>
+                    <input type="text" id="server-cloud-api" placeholder="https://pingo-cloud.accreativos.com" style="width: 100%; font-size: 0.85rem;" />
                 </div>
             </div>
-        </main>
 
-        <div id="map-container">
-            <div id="working-copy-banner" class="working-copy-banner" style="display: none;">
-                <div class="wc-content">
-                    <i class="fas fa-edit pulse-edit"></i>
-                    <span>Copia: <strong id="working-copy-name">...</strong></span>
-                    <button id="edit-working-copy-btn" class="btn btn-primary btn-xs" style="margin-left: 10px; width: auto; padding: 2px 8px; display: none;">
-                        <i class="fas fa-pen"></i> Editar
-                    </button>
-                </div>
-                <button id="unload-working-copy-btn" class="icon-btn btn-xs" title="Cerrar Copia de Trabajo">
-                    <i class="fas fa-times"></i>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; align-items: center;">
+                <button class="btn btn-outline btn-xs" id="server-config-import-btn" style="display: flex; align-items: center; gap: 5px;">
+                    <i class="fas fa-file-import"></i> Importar JSON / QR
+                </button>
+                <button class="btn btn-outline btn-xs" id="server-config-reset" style="display: flex; align-items: center; gap: 5px; opacity: 0.8;">
+                    <i class="fas fa-undo"></i> Valores por Defecto
+                </button>
+                <button class="btn btn-outline btn-xs" id="server-config-test" style="display: flex; align-items: center; gap: 5px;">
+                    <i class="fas fa-bolt"></i> Probar Conectividad
                 </button>
             </div>
 
-            <!-- Editor de Texto para Working Copy -->
-            <div id="text-editor-container" class="modal-overlay" style="display: none; z-index: 1600;">
-                <div class="modal-content" style="max-width: 90%; width: 500px; height: 80vh; display: flex; flex-direction: column;">
-                    <div class="modal-header">
-                        <i class="fas fa-file-alt modal-icon"></i>
-                        <h3 id="editor-title">Editar Archivo</h3>
-                    </div>
-                    <div class="modal-body" style="flex: 1; display: flex; flex-direction: column; padding: 10px;">
-                        <textarea id="text-editor-textarea" style="flex: 1; width: 100%; font-family: monospace; font-size: 0.9rem; resize: none; border: 1px solid var(--primary); border-radius: 8px; padding: 10px;"></textarea>
-                    </div>
-                    <div class="modal-footer" style="padding: 10px; display: flex; gap: 10px; justify-content: flex-end;">
-                        <button id="close-editor-btn" class="btn btn-outline btn-sm" style="width: auto;">Cancelar</button>
-                        <button id="save-editor-btn" class="btn btn-primary btn-sm" style="width: auto;">Guardar en Git</button>
-                    </div>
-                </div>
-            </div>
-            <div id="map"></div>
-            
-            <!-- HUD de Grabación -->
-            <div id="recording-hud" class="recording-hud" style="display: none;">
-                <div class="pulse-red"></div>
-                <div class="rec-info">
-                    <span class="rec-label">REC</span>
-                    <span id="recording-timer" class="rec-timer">0:00</span>
-                    <span class="rec-stats">
-                        <i class="fas fa-location-dot"></i> <span id="recording-points-count">0</span> pts
-                    </span>
-                </div>
-            </div>
+            <div id="server-test-status" style="display: none; padding: 8px 12px; border-radius: 6px; font-size: 0.8rem;"></div>
         </div>
-
-
-
-    <!-- Panel de Chat -->
-    <div id="chat-panel" class="chat-panel collapsed">
-        <div class="chat-header">
-            <h3><i class="fas fa-comments"></i> Chat P2P</h3>
-            <button id="close-chat-btn" class="icon-btn"><i class="fas fa-times"></i></button>
-        </div>
-        <div id="chat-messages" class="chat-messages">
-            <p class="chat-hint">Conecta con alguien para empezar a chatear...</p>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button class="btn btn-outline" id="server-config-cancel">Cancelar</button>
+            <button class="btn btn-primary" id="server-config-save">Guardar y Reconectar</button>
         </div>
     </div>
+</div>
 
-    <footer id="main-footer">
-        <!-- Modo Estado (Default) -->
-        <div id="footer-status-mode" class="footer-content">
-            <div id="location-status">
-                <i class="fas fa-crosshairs"></i> Obteniendo ubicación...
-            </div>
-            <button id="manual-location-btn" class="btn btn-outline btn-xs" style="display: none; margin-left: 10px;">
-                <i class="fas fa-hand-pointer"></i> Fijar manual
-            </button>
+<!-- Modal de Importación JSON / QR -->
+<div class="modal-overlay" id="server-config-import-modal" style="display: none; z-index: 10001;">
+    <div class="modal-content" style="max-width: 90%; width: 450px;">
+        <div class="modal-header">
+            <i class="fas fa-qrcode modal-icon"></i>
+            <h3 style="margin: 0;">Importar Configuración</h3>
         </div>
-
-        <!-- Modo Chat (Activo) -->
-        <div id="footer-chat-mode" class="footer-content chat-active-footer" style="display: none;">
-            <button id="exit-chat-btn" class="icon-btn" title="Cerrar Chat">
-                <i class="fas fa-chevron-left"></i>
-            </button>
-            <div class="chat-input-bar">
-                <button id="share-active-route-btn" class="icon-btn" title="Compartir última ruta" style="color: var(--primary); padding: 0 10px;">
-                    <i class="fas fa-folder-plus"></i>
-                </button>
-                <input type="text" id="chat-input" placeholder="Escribe un mensaje..." autocomplete="off">
-                <button id="send-chat-btn" class="btn-send">
-                    <i class="fas fa-paper-plane"></i>
-                </button>
-            </div>
+        <div class="modal-body" style="padding: 15px;">
+            <p class="small-hint" style="margin-top: 0;">Pega el bloque JSON generado por tu servidor ejecutable de Pingo o el enlace de configuración:</p>
+            <textarea id="server-config-import-json" rows="6" style="width: 100%; font-family: monospace; font-size: 0.8rem; padding: 8px; box-sizing: border-box; background: rgba(0,0,0,0.3); color: #38bdf8; border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 6px;" placeholder='{ "signaling": { "host": "192.168.1.50", "port": 9000 } }'></textarea>
         </div>
-    </footer>
-    </div>
-    
-    <!-- Modal de Confirmación Custom (para evitar problemas con confirm() nativo) -->
-    <div id="confirm-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <i class="fas fa-question-circle modal-icon"></i>
-                <h3 id="confirm-modal-title">Confirmación</h3>
-            </div>
-            <div class="modal-body">
-                <p id="confirm-modal-message">¿Estás seguro?</p>
-            </div>
-            <div class="modal-footer">
-                <button id="confirm-modal-cancel" class="btn btn-outline">Cancelar</button>
-                <button id="confirm-modal-ok" class="btn btn-primary">Aceptar</button>
-            </div>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+            <button class="btn btn-outline" id="server-config-import-modal-close">Cancelar</button>
+            <button class="btn btn-primary" id="server-config-import-modal-apply">Aplicar</button>
         </div>
     </div>
-    <!-- Modal de Detalles de Conexión -->
-    <div id="conn-stats-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content" style="max-width: 90%; width: 400px;">
-            <div class="modal-header">
-                <i class="fas fa-network-wired modal-icon"></i>
-                <h3 id="conn-stats-title">Estado de Conexión</h3>
-            </div>
-            <div class="modal-body" style="padding: 20px 15px;">
-                <div id="conn-stats-viz" class="conn-viz">
-                    <!-- Viz will be injected here -->
-                </div>
-                <div id="conn-stats-details" class="conn-details" style="margin-top: 20px; font-size: 0.85rem; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
-                    <!-- Stats will be injected here -->
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="conn-stats-close" class="btn btn-primary">Cerrar</button>
-            </div>
-        </div>
-    </div>
+</div>
 
-    <!-- Scripts -->
-    <script type="module" src="./src/js/main.js"></script>
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/minisearch@6.3.0/dist/umd/index.min.js"></script>
+<script src="./src/js/main.js" type="module"></script>
 </body>
-
 </html>

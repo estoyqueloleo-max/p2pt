@@ -10,7 +10,7 @@ import {
 import { calculateDistance } from './utils.js';
 import { updateMyMarker } from './map-manager.js';
 
-window.addEventListener('p2pt:manual-location', (e) => {
+window.addEventListener('pingo:manual-location', (e) => {
     const { lat, lng } = e.detail;
     state.myCoords = { lat, lng, accuracy: 10 }; // Manual is assumed accurate enough
     
@@ -59,7 +59,7 @@ export function initGeolocation(onLocationUpdate, onLocationError) {
         const { lat, lng } = e.detail;
         if (locationUpdateFn) locationUpdateFn(lat, lng, 100);
     };
-    window.addEventListener('p2pt:manual-location', manualHandler);
+    window.addEventListener('pingo:manual-location', manualHandler);
 
     let lastUpdateTimestamp = Date.now();
 

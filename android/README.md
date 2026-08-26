@@ -1,84 +1,84 @@
-# Build and Publication Guide - P2PT Android
+# Guía de Compilación y Publicación - Pingo Android
 
-This document details the steps to generate the production file and how to handle publication on the Google Play Store.
+Este documento detalla los pasos para generar el archivo de producción y cómo manejar la publicación en Google Play Store.
 
-## 0. Generate Development APK (Debug)
-To test the application locally without the need to sign it with a production key.
+## 0. Generar APK de Desarrollo (Debug)
+Para probar la aplicación localmente sin necesidad de firmarla con una llave de producción.
 
-Run from the `android/` folder:
+Ejecuta desde la carpeta `android/`:
 ```bash
 ./gradlew :app:assembleDebug
 ```
-The file will be generated in:
+El archivo se generará en:
 `app/build/outputs/apk/debug/app-debug.apk`
 
 ---
 
-## 1. Signing Configuration (Key)
-To generate a package that the Play Store accepts, the file must be signed.
+## 1. Configuración de Firma (Key)
+Para generar un paquete que acepte la Play Store, el archivo debe estar firmado.
 
-### Generate the key (first time only)
-If you don't have a `.jks` file, generate it with this command in the `android/` folder:
+### Generar la llave (solo la primera vez)
+Si no tienes un archivo `.jks`, genéralo con este comando en la carpeta `android/`:
 ```bash
 keytool -genkey -v -keystore my-release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias my-key-alias
 ```
 
-### Configure credentials
-Edit the `android/key.properties` file with the data of the key you created:
-- `storePassword`: Keystore password.
-- `keyPassword`: Key/alias password.
-- `keyAlias`: The alias (e.g., `my-key-alias`).
-- `storeFile`: File name (e.g., `my-release-key.jks`).
+### Configurar credenciales
+Edita el archivo `android/key.properties` con los datos de la llave que creaste:
+- `storePassword`: Contraseña del keystore.
+- `keyPassword`: Contraseña de la clave/alias.
+- `keyAlias`: El alias (ej. `my-key-alias`).
+- `storeFile`: Nombre del archivo (ej. `my-release-key.jks`).
 
 ---
 
-## 2. Generate the Android App Bundle (.aab)
-Google Play requires the `.aab` format for new applications.
+## 2. Generar el Android App Bundle (.aab)
+Google Play requiere el formato `.aab` para nuevas aplicaciones.
 
-Run from the `android/` folder:
+Ejecuta desde la carpeta `android/`:
 ```bash
 ./gradlew :app:bundleRelease
 ```
-The file will be generated in:
+El archivo se generará en:
 `app/build/outputs/bundle/release/app-release.aab`
 
 ---
 
-## 3. Upload to Play Store
-Currently, **there is no direct connection from this environment to automatically "upload"** the file to Google Play without prior configuration of the Google Play Developer API (which requires a service account JSON file).
+## 3. Subir al Play Store
+Actualmente, **no hay una conexión directa desde este entorno para "subir" automáticamente** el archivo a Google Play sin una configuración previa de la API de Google Play Developer (que requiere un archivo JSON de cuenta de servicio).
 
-### Manual Process (Recommended):
-1. Go to the [Google Play Console](https://play.google.com/console/).
-2. Select your application.
-3. Go to **Production** (or Internal Testing) -> **Create new version**.
-4. Upload the `app-release.aab` file you generated in step 2.
+### Proceso Manual (Recomendado):
+1. Ve a la [Google Play Console](https://play.google.com/console/).
+2. Selecciona tu aplicación.
+3. Ve a **Producción** (o Testing interno) -> **Crear nueva versión**.
+4. Sube el archivo `app-release.aab` que generaste en el paso 2.
 
-### Automation (Optional)
+### Automatización (Opcional)
 
-To automate the upload and avoid having to enter the web, you have two main options:
+Para automatizar la subida y no tener que entrar a la web, tienes dos opciones principales:
 
-#### Option A: Fastlane (Very popular)
-It is a tool written in Ruby that automates screenshots, beta testing, and deployment.
-1. Install Fastlane: `gem install fastlane`.
-2. Initialize in your android folder: `fastlane init`.
-3. Configure the `Appfile` and `Fastfile`.
-4. You will need the **Google Play Service Account** JSON file.
-5. Command to upload: `fastlane deploy` (depending on your configuration).
+#### Opción A: Fastlane (Muy popular)
+Es una herramienta escrita en Ruby que automatiza capturas de pantalla, beta testing y despliegue.
+1. Instala Fastlane: `gem install fastlane`.
+2. Inicializa en tu carpeta android: `fastlane init`.
+3. Configura el archivo `Appfile` y `Fastfile`.
+4. Necesitarás el archivo JSON de la **Cuenta de Servicio de Google Play**.
+5. Comando para subir: `fastlane deploy` (dependiendo de tu configuración).
 
-#### Option B: Gradle Play Publisher (GPP)
-It is a Gradle plugin that integrates directly into your build flow.
-1. Add the plugin in `build.gradle` (root):
+#### Opción B: Gradle Play Publisher (GPP)
+Es un plugin de Gradle que se integra directamente en tu flujo de compilación.
+1. Añade el plugin en `build.gradle` (root):
    `id("com.github.triplet.play") version "3.7.0" apply false`
-2. Apply it in `app/build.gradle`:
+2. Aplícalo en `app/build.gradle`:
    `apply plugin: 'com.github.triplet.play'`
-3. Configure the `play { ... }` block with the path to your credentials JSON.
-4. Command to upload: `./gradlew publishReleaseBundle`.
+3. Configura el bloque `play { ... }` con el path a tu JSON de credenciales.
+4. Comando para subir: `./gradlew publishReleaseBundle`.
 
-#### Indispensable Requirement for both:
-For either of the two, you must go to the **Google Play Console** -> **Settings** -> **API Access** and create a "Service account". Google will give you a `.json` file that these tools will use to authenticate for you.
+#### Requisito Indispensable para ambas:
+Para cualquiera de las dos, debes ir a la **Google Play Console** -> **Configuración** -> **Acceso a la API** y crear una "Cuenta de servicio". Google te dará un archivo `.json` que es el que usarán estas herramientas para autenticarse por ti.
 
 ---
 
-## Security Notes
-- **NEVER** upload `my-release-key.jks` or `key.properties` to a public repository.
-- If you lose the `.jks` file, you will not be able to update the application in the store.
+## Notas de Seguridad
+- **NUNCA** subas `my-release-key.jks` ni `key.properties` a un repositorio público.
+- Si pierdes el archivo `.jks`, no podrás actualizar la aplicación en la tienda.

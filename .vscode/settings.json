@@ -1,0 +1,14 @@
+{
+    "search.useIgnoreFiles": true,
+    "search.useGlobalIgnoreFiles": true,
+    "files.exclude": {
+        "backend/.wrangler": true,
+        "backend/_tinygo": true,
+        "backend/build": true
+    },
+    "search.exclude": {
+        "backend/.wrangler": true,
+        "backend/_tinygo": true,
+        "backend/build": true
+    }
+}

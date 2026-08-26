@@ -3,11 +3,11 @@
  */
 
 import { state, elements } from './state.js';
-import { VERSION, REFRESH_RATE_FG } from './constants.js';
+import { VERSION, REFRESH_RATE_FG, getServerConfig, saveServerConfig, resetServerConfig, DEFAULT_SERVER_CONFIG } from './constants.js';
 import { updateTrail, fitMapBounds, updateGeofenceCircle } from './map-manager.js';
 import { 
     ensureSignalingConnection, restoreActiveConnections, broadcastLocation, 
-    connectToPeer, disconnectFromPeer, getConnectionStats 
+    connectToPeer, disconnectFromPeer, getConnectionStats, reconnectPeer 
 } from './peer-manager.js';
 import { saveIdentity, saveAgenda, getAliasForPeer } from './identity-manager.js';
 import { saveGeofenceState, loadGeofenceState } from './geofence-manager.js';
@@ -19,6 +19,9 @@ import { renderRoute, clearRoute } from './map-manager.js';
 import { shareRouteP2P } from './sync-manager.js';
 import { vectorManager } from './vector-manager.js';
 import { marked } from 'marked';
+import { createGitgraph, templateExtend, TemplateName } from '@gitgraph/js';
+import { startCamera, startScreenShare } from './media-manager.js';
+import { startTour } from './tour-manager.js';
 import README from '../../README.md?raw';
 
 export function syncVersions() {
@@ -126,12 +129,22 @@ export function renderAgenda() {
 
     // Event listeners for dynamic elements
     elements.agendaContainer.querySelectorAll('.connect-contact').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             const peerId = btn.dataset.id;
             if (state.connections[peerId]) {
                 disconnectFromPeer(peerId);
             } else {
-                connectToPeer(peerId);
+                const icon = btn.querySelector('i');
+                if (icon) icon.className = 'fas fa-spinner fa-spin';
+                btn.disabled = true;
+                try {
+                    await connectToPeer(peerId);
+                } catch (err) {
+                    console.error('Error connecting to peer:', err);
+                } finally {
+                    btn.disabled = false;
+                    renderAgenda();
+                }
             }
         });
     });
@@ -181,23 +194,31 @@ export function renderAgenda() {
 /**
  * Toggle between 'standard' and 'cartography' modes
  */
-export function setUIMode(mode) {
+export function setWorkspace(mode) {
     state.uiMode = mode;
-    console.log(`[UI] Mode changed to: ${mode}`);
+    console.log(`[UI] Workspace changed to: ${mode}`);
 
     // Update Buttons
-    if (elements.modeStandardBtn) elements.modeStandardBtn.classList.toggle('active', mode === 'standard');
-    if (elements.modeCartographyBtn) elements.modeCartographyBtn.classList.toggle('active', mode === 'cartography');
+    if (elements.navNetworkBtn) elements.navNetworkBtn.classList.toggle('active', mode === 'network');
+    if (elements.navWorkspaceBtn) elements.navWorkspaceBtn.classList.toggle('active', mode === 'workspace');
+    if (elements.navCommBtn) elements.navCommBtn.classList.toggle('active', mode === 'comm');
+    if (elements.navLocationBtn) elements.navLocationBtn.classList.toggle('active', mode === 'location');
 
     // Update Panels
-    if (elements.connectionPanel) elements.connectionPanel.style.display = mode === 'standard' ? 'block' : 'none';
-    if (elements.routesPanel) elements.routesPanel.style.display = mode === 'cartography' ? 'block' : 'none';
+    if (elements.workspaceNetwork) elements.workspaceNetwork.style.display = mode === 'network' ? 'block' : 'none';
+    if (elements.workspaceEditor) elements.workspaceEditor.style.display = mode === 'workspace' ? 'block' : 'none';
+    if (elements.workspaceComm) elements.workspaceComm.style.display = mode === 'comm' ? 'block' : 'none';
+    if (elements.workspaceLocation) elements.workspaceLocation.style.display = mode === 'location' ? 'block' : 'none';
 
-    if (mode === 'cartography') {
+    if (mode === 'workspace') {
         renderRoutes();
-        updateLocationStatus('Modo Cartografía activo', 'fa-map-marked-alt');
+        updateLocationStatus('Workspace', 'fa-laptop-code');
+    } else if (mode === 'comm') {
+        updateLocationStatus('Comunicación y Búsqueda', 'fa-comments');
+    } else if (mode === 'location') {
+        updateLocationStatus('Localización', 'fa-map-marked-alt');
     } else {
-        updateLocationStatus('Modo Localización activo', 'fa-location-arrow');
+        updateLocationStatus('Red e Identidad', 'fa-network-wired');
     }
 
     // Refresh map size due to panel changes
@@ -288,8 +309,8 @@ export function renderRoutes() {
                     updateLocationStatus(`Viendo: ${item.name}`, 'fa-eye');
                     // Auto-close panel on mobile
                     if (window.innerWidth < 600 && elements.mainPanel) {
-                        elements.mainPanel.classList.add('collapsed');
-                        elements.panelToggle.classList.remove('active');
+                        if (elements.mainPanel) elements.mainPanel.classList.add('collapsed');
+                        if (elements.panelToggle) elements.panelToggle.classList.remove('active');
                     }
                 }
             }
@@ -374,8 +395,8 @@ export async function loadItemToWorkingCopy(itemId) {
 
     // Close panel to see the map/banner
     if (window.innerWidth < 600 && elements.mainPanel) {
-        elements.mainPanel.classList.add('collapsed');
-        elements.panelToggle.classList.remove('active');
+        if (elements.mainPanel) elements.mainPanel.classList.add('collapsed');
+        if (elements.panelToggle) elements.panelToggle.classList.remove('active');
     }
 }
 
@@ -426,10 +447,17 @@ export function openChatFor(peerId) {
     if (elements.chatTitle) {
         elements.chatTitle.innerText = `Chat: ${alias || peerId}`;
     }
-    if (elements.chatPanel && elements.chatPanel.classList.contains('collapsed')) {
-        toggleChat();
-    }
-    if (elements.chatInput) elements.chatInput.focus();
+    
+    // Cambiar al workspace de comunicación
+    setWorkspace('comm');
+    
+    // Asegurar que el footer de chat está visible
+    if (elements.footerStatusMode) elements.footerStatusMode.style.display = 'none';
+    if (elements.footerChatMode) elements.footerChatMode.style.display = 'flex';
+    if (elements.chatBadge) elements.chatBadge.style.display = 'none';
+    if (elements.chatMessages) elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+
+    if (elements.chatInput) setTimeout(() => elements.chatInput.focus(), 300);
     updateLocationStatus(`Chat abierto con ${alias || peerId}`, 'fa-comment');
 }
 
@@ -562,6 +590,46 @@ export async function saveChatMessageToGit(text, sender) {
 
 
 export function setupEventListeners() {
+    const createNoteBtn = document.getElementById('create-note-btn');
+    if (createNoteBtn) {
+        createNoteBtn.addEventListener('click', async () => {
+            const title = window.prompt("¿Nombre de la nueva nota?", "Nueva Nota");
+            if (title === null) return; // User cancelled
+            const cleanTitle = title.trim() || "Nueva Nota";
+            const fileId = `note-${Date.now()}.txt`;
+            
+            state.workingFile = {
+                id: fileId,
+                name: cleanTitle,
+                type: 'note'
+            };
+            
+            if (elements.textEditorTextarea) {
+                elements.textEditorTextarea.value = '';
+            }
+            if (elements.editorTitle) {
+                elements.editorTitle.innerText = `Editando: ${cleanTitle}`;
+            }
+            
+            const visibilityToggle = document.getElementById('editor-visibility-toggle');
+            if (visibilityToggle) {
+                visibilityToggle.checked = true;
+            }
+            
+            if (elements.textEditorContainer) {
+                elements.textEditorContainer.style.display = 'flex';
+            }
+            
+            if (elements.workingCopyBanner) {
+                elements.workingCopyBanner.style.display = 'flex';
+                elements.workingCopyName.innerText = cleanTitle;
+                if (elements.editWorkingCopyBtn) {
+                    elements.editWorkingCopyBtn.style.display = 'inline-flex';
+                }
+            }
+        });
+    }
+
     setupVectorListeners();
     // Clear app badge on startup
     if ('clearAppBadge' in navigator) {
@@ -598,8 +666,21 @@ export function setupEventListeners() {
             });
         } else {
             window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(fullText)}`, '_blank');
+            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(fullText)}`, '_blank');
         }
     });
+
+    if (elements.shareCameraBtn) {
+        elements.shareCameraBtn.addEventListener('click', () => {
+            startCamera();
+        });
+    }
+
+    if (elements.shareScreenBtn) {
+        elements.shareScreenBtn.addEventListener('click', () => {
+            startScreenShare();
+        });
+    }
 
     elements.stopSharingBtn.addEventListener('click', () => {
         if (confirm('¿Dejar de compartir y desconectar?')) {
@@ -611,17 +692,17 @@ export function setupEventListeners() {
         }
     });
 
-    elements.panelToggle.addEventListener('click', () => {
+    if (elements.panelToggle) elements.panelToggle.addEventListener('click', () => {
         const isCurrentlyCollapsed = elements.mainPanel.classList.contains('collapsed');
         
         if (isCurrentlyCollapsed) {
             // Opening
-            elements.mainPanel.classList.remove('collapsed');
-            elements.panelToggle.classList.add('active');
+            if (elements.mainPanel) elements.mainPanel.classList.remove('collapsed');
+            if (elements.panelToggle) elements.panelToggle.classList.add('active');
         } else {
             // Closing
-            elements.mainPanel.classList.add('collapsed');
-            elements.panelToggle.classList.remove('active');
+            if (elements.mainPanel) elements.mainPanel.classList.add('collapsed');
+            if (elements.panelToggle) elements.panelToggle.classList.remove('active');
         }
         
         setTimeout(() => {
@@ -700,9 +781,24 @@ export function setupEventListeners() {
 
     initAppGuide();
 
-    elements.chatBtn.addEventListener('click', toggleChat);
-    elements.closeChatBtn.addEventListener('click', toggleChat);
-    elements.exitChatBtn.addEventListener('click', toggleChat);
+    const tourButtons = [
+        { id: 'start-tour-identity-btn', tour: 'identity' },
+        { id: 'start-tour-routes-btn', tour: 'routes' },
+        { id: 'start-tour-geofence-btn', tour: 'geofence' },
+        { id: 'start-tour-comm-btn', tour: 'comm_search' },
+        { id: 'start-tour-servers-btn', tour: 'servers' }
+    ];
+
+    tourButtons.forEach(({ id, tour }) => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.addEventListener('click', () => startTour(tour));
+        }
+    });
+
+    if (elements.chatBtn) elements.chatBtn.addEventListener('click', toggleChat);
+    if (elements.closeChatBtn) elements.closeChatBtn.addEventListener('click', toggleChat);
+    if (elements.exitChatBtn) elements.exitChatBtn.addEventListener('click', toggleChat);
     elements.sendChatBtn.addEventListener('click', sendChatMessage);
 
     elements.manualLocationBtn.addEventListener('click', () => {
@@ -723,8 +819,10 @@ export function setupEventListeners() {
     });
 
     // --- MODO CORRESPONDENCIA / CARTOGRAFÍA ---
-    elements.modeStandardBtn.addEventListener('click', () => setUIMode('standard'));
-    elements.modeCartographyBtn.addEventListener('click', () => setUIMode('cartography'));
+    if (elements.navNetworkBtn) elements.navNetworkBtn.addEventListener('click', () => setWorkspace('network'));
+    if (elements.navWorkspaceBtn) elements.navWorkspaceBtn.addEventListener('click', () => setWorkspace('workspace'));
+    if (elements.navCommBtn) elements.navCommBtn.addEventListener('click', () => setWorkspace('comm'));
+    if (elements.navLocationBtn) elements.navLocationBtn.addEventListener('click', () => setWorkspace('location'));
 
     elements.startRecordingBtn.addEventListener('click', () => {
         startRecording();
@@ -744,17 +842,20 @@ export function setupEventListeners() {
         elements.saveRouteConfirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
 
         const name = elements.routeNameInput.value.trim();
-        const success = await saveRoute(name);
-        
-        if (success) {
-            if (elements.saveRouteForm) elements.saveRouteForm.style.display = 'none';
-            if (elements.recordingHud) elements.recordingHud.style.display = 'none';
-            renderRoutes();
-        } else {
-            // Restore button if failed
-            elements.saveRouteConfirmBtn.disabled = false;
-            elements.saveRouteConfirmBtn.innerHTML = originalText;
-        }
+        const isPublic = document.getElementById('route-visibility-toggle').checked;
+        import('./route-manager.js').then(async ({ saveRoute }) => {
+            const success = await saveRoute(name, isPublic);
+            
+            if (success) {
+                if (elements.saveRouteForm) elements.saveRouteForm.style.display = 'none';
+                if (elements.recordingHud) elements.recordingHud.style.display = 'none';
+                renderRoutes();
+            } else {
+                // Restore button if failed
+                elements.saveRouteConfirmBtn.disabled = false;
+                elements.saveRouteConfirmBtn.innerHTML = originalText;
+            }
+        });
     });
 
     if (elements.shareActiveRouteBtn) {
@@ -901,6 +1002,75 @@ export function setupEventListeners() {
                     alert(`Error al borrar: ${err.message}`);
                 }
             }
+        });
+    }
+
+    if (elements.viewGitgraphBtn) {
+        elements.viewGitgraphBtn.addEventListener('click', async () => {
+            if (elements.gitgraphModal) elements.gitgraphModal.style.display = 'flex';
+            if (elements.gitgraphContainer) {
+                elements.gitgraphContainer.innerHTML = '';
+                
+                const { getAllCommitsGraph } = await import('./git-manager.js');
+                const { commits, branchPointers } = await getAllCommitsGraph();
+                
+                if (!commits || commits.length === 0) {
+                    elements.gitgraphContainer.innerHTML = '<p style="padding: 20px; text-align: center;">El repositorio está vacío.</p>';
+                    return;
+                }
+                
+                const darkTemplate = templateExtend(TemplateName.Metro, {
+                    colors: ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#a855f7", "#ec4899"],
+                    commit: {
+                        message: {
+                            displayAuthor: true,
+                            displayHash: true,
+                            color: "#f8fafc",
+                            font: "normal 12pt Outfit, sans-serif"
+                        },
+                        dot: {
+                            font: "normal 10pt Outfit, sans-serif"
+                        }
+                    },
+                    branch: {
+                        lineWidth: 4,
+                        label: {
+                            color: "#f8fafc",
+                            strokeColor: "#0f172a",
+                            font: "normal 10pt Outfit, sans-serif"
+                        }
+                    }
+                });
+                
+                const gitgraph = createGitgraph(elements.gitgraphContainer, {
+                    template: darkTemplate,
+                    orientation: "vertical-reverse"
+                });
+                
+                const reversedCommits = [...commits].reverse();
+                const mainBranch = gitgraph.branch("main");
+                
+                reversedCommits.forEach(c => {
+                    const branches = [];
+                    for (const sha in branchPointers) {
+                        if (sha === c.oid) branches.push(branchPointers[sha]);
+                    }
+                    
+                    const branchTags = branches.length > 0 ? ` (${branches.join(', ')})` : '';
+                    
+                    mainBranch.commit({
+                        subject: c.commit.message.split('\n')[0] + branchTags,
+                        author: c.commit.author.name || 'Desconocido',
+                        hash: c.oid.substring(0, 7)
+                    });
+                });
+            }
+        });
+    }
+
+    if (elements.gitgraphClose) {
+        elements.gitgraphClose.addEventListener('click', () => {
+            if (elements.gitgraphModal) elements.gitgraphModal.style.display = 'none';
         });
     }
 
@@ -1065,10 +1235,11 @@ export function setupEventListeners() {
         elements.saveEditorBtn.addEventListener('click', async () => {
             if (!state.workingFile || !state.workingFile.id) return;
             const newContent = elements.textEditorTextarea.value;
+            const isPublic = document.getElementById('editor-visibility-toggle').checked;
             
             try {
                 updateLocationStatus('Guardando en Git...', 'fa-spinner fa-spin');
-                const sha = await commitLinkFile(state.workingFile.id, newContent);
+                const sha = await commitLinkFile(state.workingFile.id, newContent, isPublic ? 'public' : 'private');
                 if (sha) {
                     updateLocationStatus('Cambios guardados en Git ✅', 'fa-check-circle');
                     if (elements.textEditorContainer) elements.textEditorContainer.style.display = 'none';
@@ -1082,7 +1253,272 @@ export function setupEventListeners() {
             }
         });
     }
+
+    // --- CONFIGURACIÓN DE SERVIDORES (P2P / TURN / CLOUD) ---
+    if (elements.openServerConfigBtn) {
+        elements.openServerConfigBtn.addEventListener('click', () => {
+            populateServerConfigUI();
+            if (elements.serverConfigModal) elements.serverConfigModal.style.display = 'flex';
+        });
+    }
+
+    if (elements.serverConfigCloseBtn) {
+        elements.serverConfigCloseBtn.addEventListener('click', () => {
+            if (elements.serverConfigModal) elements.serverConfigModal.style.display = 'none';
+        });
+    }
+
+    if (elements.serverConfigCancelBtn) {
+        elements.serverConfigCancelBtn.addEventListener('click', () => {
+            if (elements.serverConfigModal) elements.serverConfigModal.style.display = 'none';
+        });
+    }
+
+    if (elements.serverConfigSaveBtn) {
+        elements.serverConfigSaveBtn.addEventListener('click', saveServerConfigFromUI);
+    }
+
+    if (elements.serverConfigResetBtn) {
+        elements.serverConfigResetBtn.addEventListener('click', () => {
+            const confirmed = confirm('¿Restablecer los servidores a los valores por defecto de Pingo?');
+            if (confirmed) {
+                resetServerConfig();
+                populateServerConfigUI();
+                updateLocationStatus('Servidores restablecidos por defecto', 'fa-undo');
+            }
+        });
+    }
+
+    if (elements.serverConfigTestBtn) {
+        elements.serverConfigTestBtn.addEventListener('click', testServerConnectivityUI);
+    }
+
+    if (elements.serverConfigImportBtn) {
+        elements.serverConfigImportBtn.addEventListener('click', () => {
+            if (elements.serverConfigImportModal) {
+                elements.serverConfigImportModal.style.display = 'flex';
+                if (elements.serverConfigImportJsonTextarea) elements.serverConfigImportJsonTextarea.value = '';
+            }
+        });
+    }
+
+    if (elements.serverConfigImportModalClose) {
+        elements.serverConfigImportModalClose.addEventListener('click', () => {
+            if (elements.serverConfigImportModal) elements.serverConfigImportModal.style.display = 'none';
+        });
+    }
+
+    if (elements.serverConfigImportModalApply) {
+        elements.serverConfigImportModalApply.addEventListener('click', () => {
+            const raw = elements.serverConfigImportJsonTextarea ? elements.serverConfigImportJsonTextarea.value.trim() : '';
+            if (!raw) {
+                alert('Pega un bloque JSON o un enlace de configuración.');
+                return;
+            }
+
+            try {
+                let parsed = null;
+                if (raw.startsWith('http://') || raw.startsWith('https://')) {
+                    const url = new URL(raw);
+                    const param = url.searchParams.get('serverConfig');
+                    if (param) {
+                        const normalized = param.replace(/-/g, '+').replace(/_/g, '/');
+                        parsed = JSON.parse(atob(normalized));
+                    }
+                } else {
+                    parsed = JSON.parse(raw);
+                }
+
+                if (!parsed) throw new Error('No se pudo extraer la configuración');
+
+                if (parsed.signaling) {
+                    if (parsed.signaling.host && elements.serverSignalingHost) elements.serverSignalingHost.value = parsed.signaling.host;
+                    if (parsed.signaling.port && elements.serverSignalingPort) elements.serverSignalingPort.value = parsed.signaling.port;
+                    if (parsed.signaling.path && elements.serverSignalingPath) elements.serverSignalingPath.value = parsed.signaling.path;
+                    if (parsed.signaling.secure !== undefined && elements.serverSignalingSecure) elements.serverSignalingSecure.checked = parsed.signaling.secure;
+                }
+
+                if (parsed.turn) {
+                    if (parsed.turn.urls && elements.serverTurnUrls) elements.serverTurnUrls.value = Array.isArray(parsed.turn.urls) ? parsed.turn.urls.join(', ') : parsed.turn.urls;
+                    if (parsed.turn.username && elements.serverTurnUser) elements.serverTurnUser.value = parsed.turn.username;
+                    if (parsed.turn.credential && elements.serverTurnPass) elements.serverTurnPass.value = parsed.turn.credential;
+                }
+
+                if (parsed.cloud && parsed.cloud.apiEndpoint && elements.serverCloudApi) {
+                    elements.serverCloudApi.value = parsed.cloud.apiEndpoint;
+                }
+
+                if (elements.serverConfigImportModal) elements.serverConfigImportModal.style.display = 'none';
+                updateLocationStatus('Configuración importada en formulario ✅', 'fa-check');
+            } catch (err) {
+                alert(`Error al importar configuración: ${err.message}`);
+            }
+        });
+    }
+
+    // Toggle Password Visibility for TURN Credential
+    const toggleTurnPassBtn = document.getElementById('toggle-turn-pass-btn');
+    const toggleTurnPassIcon = document.getElementById('toggle-turn-pass-icon');
+    if (toggleTurnPassBtn && elements.serverTurnPass && toggleTurnPassIcon) {
+        toggleTurnPassBtn.addEventListener('click', () => {
+            if (elements.serverTurnPass.type === 'password') {
+                elements.serverTurnPass.type = 'text';
+                toggleTurnPassIcon.classList.remove('fa-eye');
+                toggleTurnPassIcon.classList.add('fa-eye-slash');
+            } else {
+                elements.serverTurnPass.type = 'password';
+                toggleTurnPassIcon.classList.remove('fa-eye-slash');
+                toggleTurnPassIcon.classList.add('fa-eye');
+            }
+        });
+    }
+
+    // Toggle Location Controls Panel (Collapse / Expand)
+    const toggleLocationControlsBtn = document.getElementById('toggle-location-controls-btn');
+    const locationControlsPanel = document.getElementById('location-controls-panel');
+    if (toggleLocationControlsBtn && locationControlsPanel) {
+        toggleLocationControlsBtn.addEventListener('click', () => {
+            locationControlsPanel.classList.toggle('collapsed');
+        });
+    }
 }
+
+function populateServerConfigUI() {
+    const config = getServerConfig();
+    if (elements.serverSignalingHost) elements.serverSignalingHost.value = config.signaling.host || '';
+    if (elements.serverSignalingPort) elements.serverSignalingPort.value = config.signaling.port || 443;
+    if (elements.serverSignalingPath) elements.serverSignalingPath.value = config.signaling.path || '/';
+    if (elements.serverSignalingSecure) elements.serverSignalingSecure.checked = config.signaling.secure !== false;
+    
+    if (elements.serverTurnUrls) elements.serverTurnUrls.value = (config.turn.urls || []).join(', ');
+    if (elements.serverTurnUser) elements.serverTurnUser.value = config.turn.username || '';
+    if (elements.serverTurnPass) {
+        elements.serverTurnPass.value = config.turn.credential || '';
+        elements.serverTurnPass.type = 'password'; // Always reset to password for privacy
+        const toggleIcon = document.getElementById('toggle-turn-pass-icon');
+        if (toggleIcon) {
+            toggleIcon.classList.remove('fa-eye-slash');
+            toggleIcon.classList.add('fa-eye');
+        }
+    }
+
+    if (elements.serverCloudApi) elements.serverCloudApi.value = config.cloud.apiEndpoint || '';
+    if (elements.serverTestStatus) elements.serverTestStatus.style.display = 'none';
+}
+
+async function testServerConnectivityUI() {
+    if (!elements.serverTestStatus) return;
+    elements.serverTestStatus.style.display = 'block';
+    elements.serverTestStatus.style.background = 'rgba(234, 179, 8, 0.15)';
+    elements.serverTestStatus.style.color = '#facc15';
+    elements.serverTestStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Probando conectividad con servidor de señalización...';
+
+    const host = elements.serverSignalingHost ? elements.serverSignalingHost.value.trim() : 'localhost';
+    const port = elements.serverSignalingPort ? parseInt(elements.serverSignalingPort.value, 10) : 443;
+    const path = elements.serverSignalingPath ? elements.serverSignalingPath.value.trim() : '/';
+    const secure = elements.serverSignalingSecure ? elements.serverSignalingSecure.checked : true;
+    const proto = secure ? 'https' : 'http';
+    const wsProto = secure ? 'wss' : 'ws';
+
+    const cleanPath = path === '/' ? '' : (path.startsWith('/') ? path : '/' + path);
+    const testUrl = `${proto}://${host}:${port}${cleanPath}/id`;
+
+    try {
+        let httpOk = false;
+        try {
+            const controller = new AbortController();
+            const tm = setTimeout(() => controller.abort(), 4000);
+            const resp = await fetch(testUrl, { signal: controller.signal });
+            clearTimeout(tm);
+            if (resp.ok) {
+                httpOk = true;
+            }
+        } catch (e) {
+            console.log('[Test] HTTP probe note:', e);
+        }
+
+        // Also test WebSocket connection directly
+        const wsUrl = `${wsProto}://${host}:${port}${cleanPath}/peerjs?key=peerjs&id=test_${Date.now()}&token=test`;
+        const wsOk = await new Promise((resolve) => {
+            try {
+                const ws = new WebSocket(wsUrl);
+                const tm = setTimeout(() => {
+                    try { ws.close(); } catch(e){}
+                    resolve(false);
+                }, 3500);
+                ws.onopen = () => {
+                    clearTimeout(tm);
+                    ws.close();
+                    resolve(true);
+                };
+                ws.onerror = () => {
+                    clearTimeout(tm);
+                    resolve(false);
+                };
+            } catch(e) {
+                resolve(false);
+            }
+        });
+
+        if (httpOk || wsOk) {
+            elements.serverTestStatus.style.background = 'rgba(34, 197, 94, 0.15)';
+            elements.serverTestStatus.style.color = '#4ade80';
+            elements.serverTestStatus.innerHTML = `✅ <b>Conexión Exitosa:</b> Servidor alcanzable en <code>${host}:${port}</code>`;
+        } else {
+            elements.serverTestStatus.style.background = 'rgba(239, 68, 68, 0.15)';
+            elements.serverTestStatus.style.color = '#f87171';
+            elements.serverTestStatus.innerHTML = `❌ <b>Fallo:</b> No se pudo conectar a <code>${testUrl}</code>. Verifica host, puerto y certificados SSL.`;
+        }
+    } catch (err) {
+        elements.serverTestStatus.style.background = 'rgba(239, 68, 68, 0.15)';
+        elements.serverTestStatus.style.color = '#f87171';
+        elements.serverTestStatus.innerHTML = `❌ Error: ${err.message || 'Fallo de red'}`;
+    }
+}
+
+function saveServerConfigFromUI() {
+    const rawUrls = elements.serverTurnUrls ? elements.serverTurnUrls.value.trim() : '';
+    const turnUrls = rawUrls ? rawUrls.split(/[\n,]+/).map(u => u.trim()).filter(Boolean) : [];
+
+    const newConfig = {
+        signaling: {
+            host: elements.serverSignalingHost ? elements.serverSignalingHost.value.trim() : DEFAULT_SERVER_CONFIG.signaling.host,
+            port: elements.serverSignalingPort ? (parseInt(elements.serverSignalingPort.value, 10) || 443) : DEFAULT_SERVER_CONFIG.signaling.port,
+            path: elements.serverSignalingPath ? elements.serverSignalingPath.value.trim() : '/',
+            secure: elements.serverSignalingSecure ? elements.serverSignalingSecure.checked : true,
+            key: 'peerjs'
+        },
+        turn: {
+            urls: turnUrls,
+            username: elements.serverTurnUser ? elements.serverTurnUser.value.trim() : '',
+            credential: elements.serverTurnPass ? elements.serverTurnPass.value.trim() : ''
+        },
+        cloud: {
+            enabled: state.useCloudServices,
+            apiEndpoint: elements.serverCloudApi ? elements.serverCloudApi.value.trim() : DEFAULT_SERVER_CONFIG.cloud.apiEndpoint,
+            turnCredentialsPath: DEFAULT_SERVER_CONFIG.cloud.turnCredentialsPath
+        }
+    };
+
+    saveServerConfig(newConfig);
+    if (elements.serverConfigModal) elements.serverConfigModal.style.display = 'none';
+    updateLocationStatus('Reconectando con nuevos servidores...', 'fa-spinner fa-spin');
+
+    // Trigger reconnect
+    reconnectPeer(
+        (id) => {
+            updateLocationStatus('Conectado a nuevo servidor ✅', 'fa-check-circle');
+            if (elements.statusIndicator) {
+                elements.statusIndicator.classList.add('online');
+            }
+        },
+        null,
+        (err) => {
+            updateLocationStatus('Error conectando a servidor ❌', 'fa-triangle-exclamation');
+        }
+    );
+}
+
 
 export function updateDisconnectButton() {
     if (elements.stopSharingBtn) {
@@ -1304,16 +1740,22 @@ export function initAppGuide() {
 
         sections.forEach(section => {
             const lines = section.split('\n');
-            const titleWithIcon = lines[0].trim();
+            const rawTitle = lines[0].trim();
             const body = lines.slice(1).join('\n').trim();
+
+            // Extraer emoji o símbolo inicial para aislarlo en una caja de icono
+            const emojiMatch = rawTitle.match(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic}|\p{Emoji}|[^\w\s])\s*(.*)$/u);
+            const icon = emojiMatch ? emojiMatch[1] : '📖';
+            const cleanTitle = emojiMatch ? emojiMatch[2] : rawTitle;
 
             const details = document.createElement('details');
             details.className = 'guide-item';
             
-            // Reconstruct summary with chevron
+            // Reconstruct summary with isolated icon, flexible title, and chevron
             details.innerHTML = `
                 <summary class="guide-header">
-                    ${titleWithIcon}
+                    <span class="guide-icon-badge">${icon}</span>
+                    <span class="guide-title">${cleanTitle}</span>
                     <i class="fas fa-chevron-down chevron"></i>
                 </summary>
                 <div class="guide-content">
@@ -1373,6 +1815,23 @@ export function showConfirmModal(title, message) {
  * Setup Semantic / Vector Search listeners
  */
 export function setupVectorListeners() {
+    // --- Privacy Toggles ---
+    if (elements.allowExactSearchToggle) {
+        elements.allowExactSearchToggle.checked = state.allowExactSearchP2P;
+        elements.allowExactSearchToggle.addEventListener('change', (e) => {
+            state.allowExactSearchP2P = e.target.checked;
+            localStorage.setItem('pingo_allow_exact_search', state.allowExactSearchP2P);
+        });
+    }
+
+    if (elements.allowSemanticSearchToggle) {
+        elements.allowSemanticSearchToggle.checked = state.allowSemanticSearchP2P;
+        elements.allowSemanticSearchToggle.addEventListener('change', (e) => {
+            state.allowSemanticSearchP2P = e.target.checked;
+            localStorage.setItem('pingo_allow_semantic_search', state.allowSemanticSearchP2P);
+        });
+    }
+
     if (elements.indexVectorsBtn) {
         elements.indexVectorsBtn.addEventListener('click', async () => {
             const btn = elements.indexVectorsBtn;
@@ -1383,15 +1842,19 @@ export function setupVectorListeners() {
             btn.disabled = true;
             progress.style.display = 'block';
             bar.style.width = '0%';
-            status.innerText = 'Cargando motor de IA...';
+            status.innerText = 'Indexando contenido...';
 
             try {
-                // Función para leer archivos del Git
                 const readFile = async (id) => await readRawFile(id);
                 
+                // Indexar Exacto
+                const { searchManager } = await import('./search-manager.js');
+                await searchManager.indexData(state.routes, readFile);
+                
+                // Indexar Semántico
                 await vectorManager.indexGitFiles(state.routes, readFile);
                 
-                status.innerText = '¡Indexación semántica completa!';
+                status.innerText = '¡Indexación completa!';
                 setTimeout(() => {
                     progress.style.display = 'none';
                     btn.disabled = false;
@@ -1405,30 +1868,49 @@ export function setupVectorListeners() {
     }
 
     if (elements.semanticSearchInput) {
-        elements.semanticSearchInput.addEventListener('input', async (e) => {
-            const query = e.target.value.trim();
-            if (query.length < 3) {
-                renderRoutes(); // Restore full list if query is short
-                return;
-            }
+        // Usa debounce si es necesario, pero aquí usaremos el evento 'change' o un botón
+        // Como el user tipeaba en input, dejaremos 'input' con un pequeño delay
+        let timeout = null;
+        elements.semanticSearchInput.addEventListener('input', (e) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(async () => {
+                const query = e.target.value.trim();
+                if (query.length < 3) {
+                    if (elements.routesContainer) elements.routesContainer.innerHTML = '';
+                    return;
+                }
 
-            // Auto-switch to cartography mode to see results
-            if (state.uiMode !== 'cartography') {
-                setUIMode('cartography');
-            }
+                if (state.uiMode !== 'cartography') {
+                    setWorkspace('workspace');
+                }
 
-            try {
-                const vector = await vectorManager.getEmbedding(query);
-                const matches = await vectorManager.findSimilar(vector, 10);
-                
-                // Filtrar por un umbral mínimo de similitud (ej: 0.2) para evitar ruido
-                const relevantMatches = matches.filter(m => m.similarity > 0.2);
-                
-                // Render results with similarity scores
-                renderSemanticResults(relevantMatches);
-            } catch (err) {
-                console.error('[VectorUI] Search error:', err);
-            }
+                if (elements.routesContainer) elements.routesContainer.innerHTML = '<p class="small-hint" style="text-align: center; padding: 10px;">Buscando localmente y en la red P2P...</p>';
+
+                try {
+                    const isSemantic = elements.searchTypeSemantic && elements.searchTypeSemantic.checked;
+                    const queryId = 'q_' + Date.now();
+                    const { broadcastSearchQuery } = await import('./peer-manager.js');
+
+                    if (isSemantic) {
+                        const vector = await vectorManager.getEmbedding(query);
+                        const matches = await vectorManager.findSimilar(vector, 10);
+                        const relevantMatches = matches.filter(m => m.similarity > 0.2);
+                        renderSearchResults(relevantMatches, 'Local');
+                        
+                        // Broadcast P2P Semantic
+                        broadcastSearchQuery(queryId, 'semantic', Array.from(vector));
+                    } else {
+                        const { searchManager } = await import('./search-manager.js');
+                        const matches = searchManager.searchExact(query);
+                        renderSearchResults(matches, 'Local');
+                        
+                        // Broadcast P2P Exact
+                        broadcastSearchQuery(queryId, 'exact', query);
+                    }
+                } catch (err) {
+                    console.error('[SearchUI] Search error:', err);
+                }
+            }, 500);
         });
     }
 
@@ -1452,11 +1934,11 @@ export function setupVectorListeners() {
 
     // Initialize Sidebar state based on width
     if (window.innerWidth < 1000) {
-        elements.mainPanel.classList.add('collapsed');
-        elements.panelToggle.classList.remove('active');
+        if (elements.mainPanel) elements.mainPanel.classList.add('collapsed');
+        if (elements.panelToggle) elements.panelToggle.classList.remove('active');
     } else {
-        elements.mainPanel.classList.remove('collapsed');
-        elements.panelToggle.classList.add('active');
+        if (elements.mainPanel) elements.mainPanel.classList.remove('collapsed');
+        if (elements.panelToggle) elements.panelToggle.classList.add('active');
     }
 
     // Connection Stats Modal
@@ -1467,45 +1949,211 @@ export function setupVectorListeners() {
     }
 }
 
-function renderSemanticResults(matches) {
+export function renderSearchResults(matches, sourceName = 'Local') {
     if (!elements.routesContainer) return;
-    elements.routesContainer.innerHTML = '';
-
-    if (matches.length === 0) {
-        elements.routesContainer.innerHTML = '<p class="small-hint" style="text-align: center; padding: 20px;">No hay coincidencias semánticas.</p>';
-        return;
+    
+    // Clear if it's a new local search, but append if it's a P2P result
+    if (sourceName === 'Local') {
+        elements.routesContainer.innerHTML = '';
+        if (matches.length === 0) {
+            elements.routesContainer.innerHTML = '<p class="small-hint" style="text-align: center; padding: 20px;">Sin resultados locales. Esperando a la red...</p>';
+            return;
+        }
+    } else {
+        // Quitar mensaje de vacío si lo hay
+        const emptyHint = elements.routesContainer.querySelector('.small-hint');
+        if (emptyHint && matches.length > 0) emptyHint.remove();
     }
 
-    // Re-use logic from renderRoutes but add similarity badge
     matches.forEach(match => {
-        const originalItem = state.routes.find(r => r.id === match.id);
-        if (!originalItem) return;
+        // Prevent duplicate rendering of the same search result (e.g. from multiple P2P paths)
+        if (elements.routesContainer.querySelector(`.view-route[data-id="${match.id}"]`)) {
+            return;
+        }
 
-        const score = Math.round(match.similarity * 100);
+        // En local tenemos state.routes para el nombre original, pero desde P2P nos llega ya en el match
+        const itemName = match.name || match.id;
+        const score = Math.round((match.similarity || match.score || 0) * 100);
+        
         const card = document.createElement('div');
         card.className = 'contact-card route-card';
-        card.style.borderLeft = `4px solid hsl(${score}, 70%, 50%)`; 
+        card.style.borderLeft = `4px solid hsl(${Math.min(score, 100)}, 70%, 50%)`; 
         
+        const sourceBadge = sourceName === 'Local' 
+            ? `<span class="badge" style="background: var(--primary); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">Local</span>`
+            : `<span class="badge" style="background: #eab308; color: black; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;"><i class="fas fa-network-wired"></i> ${sourceName}</span>`;
+
         card.innerHTML = `
             <div class="contact-info">
-                <span class="contact-name">${originalItem.name}</span>
-                <div class="route-meta">
-                    <span class="badge" style="background: var(--primary); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">Semántica: ${score}%</span>
+                <span class="contact-name">${itemName}</span>
+                <div class="route-meta" style="margin-top: 4px; display: flex; gap: 5px;">
+                    ${sourceBadge}
+                    <span class="badge" style="background: rgba(0,0,0,0.1); padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">Relevancia: ${score}</span>
                 </div>
             </div>
             <div class="contact-actions">
-                <button class="btn btn-primary btn-sm view-route" data-id="${originalItem.id}">
+                <button class="btn btn-outline btn-sm view-route" data-id="${match.id}" ${sourceName !== 'Local' ? 'disabled title="Solo disponible localmente por ahora"' : ''}>
                     <i class="fas fa-eye"></i>
                 </button>
             </div>
         `;
         
-        card.querySelector('.view-route').addEventListener('click', () => {
-             loadItemToWorkingCopy(originalItem.id);
-        });
+        if (sourceName === 'Local') {
+            card.querySelector('.view-route').addEventListener('click', () => {
+                 import('./ui-manager.js').then(ui => ui.loadItemToWorkingCopy(match.id));
+            });
+        }
 
         elements.routesContainer.appendChild(card);
     });
+}
+
+// --- P2P Search Handlers ---
+
+export async function handleIncomingSearch(peerId, data) {
+    const { queryId, searchType, query, originId, timestamp, ttl } = data;
+    
+    // Log history
+    const alias = getAliasForPeer(originId) || originId;
+    state.searchHistory.unshift({
+        queryId,
+        query: searchType === 'exact' ? query : '[Vector Semántico]',
+        type: searchType,
+        origin: alias,
+        timestamp
+    });
+    if (state.searchHistory.length > 50) state.searchHistory.pop();
+    renderSearchHistory();
+
+    // Cache routing path for reverse-path routing of results
+    if (queryId && peerId) {
+        state.queryRoutingTable.set(queryId, peerId);
+        if (state.queryRoutingTable.size > 500) {
+            const oldestKey = state.queryRoutingTable.keys().next().value;
+            state.queryRoutingTable.delete(oldestKey);
+        }
+    }
+
+    // Check permissions
+    if (searchType === 'exact' && !state.allowExactSearchP2P) return;
+    if (searchType === 'semantic' && !state.allowSemanticSearchP2P) return;
+
+    // Search Local Data
+    let results = [];
+    if (searchType === 'exact') {
+        const { searchManager } = await import('./search-manager.js');
+        results = searchManager.searchExact(query, true); // true = requirePublic
+    } else if (searchType === 'semantic') {
+        const vector = Float32Array.from(query); // query was Array.from(vector)
+        results = await vectorManager.findSimilar(vector, 5, true); // true = requirePublic
+    }
+
+    // Filter relevant and limit payload size
+    results = results.filter(r => (r.similarity || r.score) > 0.2).slice(0, 5);
+
+    if (results.length > 0) {
+        const { state } = await import('./state.js');
+        if (state.connections[peerId] && state.connections[peerId].open) {
+            state.connections[peerId].send({
+                type: 'search-result',
+                queryId,
+                responderId: state.myPeerId,
+                results: results.map(r => ({ id: r.id, name: r.name, type: r.type, score: r.similarity || r.score }))
+            });
+        }
+    }
+
+    // Propagate if TTL > 1 (decrements by 1 for next hop, stopping propagation when it reaches 1)
+    if (ttl > 1) {
+        const { broadcastSearchQuery } = await import('./peer-manager.js');
+        broadcastSearchQuery(queryId, searchType, query, ttl - 1, originId, peerId);
+    }
+}
+
+export function handleIncomingSearchResult(peerId, data) {
+    const { queryId, responderId, results } = data;
+    
+    // Check if we need to forward this result
+    const forwardTo = state.queryRoutingTable.get(queryId);
+    if (!forwardTo) {
+        // We are the real origin: render results
+        const responderAlias = getAliasForPeer(responderId) || responderId;
+        renderSearchResults(results, responderAlias);
+    } else {
+        // We are intermediate: forward back to the peer we received the query from
+        console.log(`[Search] Forwarding search result for ${queryId} from ${responderId} to ${forwardTo}`);
+        if (state.connections[forwardTo] && state.connections[forwardTo].open) {
+            state.connections[forwardTo].send({
+                type: 'search-result',
+                queryId,
+                responderId,
+                results
+            });
+        } else {
+            console.error(`[Search] Cannot forward result: connection to ${forwardTo} is closed`);
+        }
+    }
+}
+
+function renderSearchHistory() {
+    if (!elements.searchHistoryContainer) return;
+    
+    // Header for actions
+    const headerHtml = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="font-size: 0.8rem; opacity: 0.8;">Últimas ${state.searchHistory.length} búsquedas</span>
+            <button id="dump-search-history-btn" class="btn btn-outline btn-sm" ${state.searchHistory.length === 0 ? 'disabled' : ''}>
+                <i class="fas fa-save"></i> Volcar a Git
+            </button>
+        </div>
+    `;
+    
+    elements.searchHistoryContainer.innerHTML = headerHtml;
+    
+    if (state.searchHistory.length === 0) {
+        elements.searchHistoryContainer.innerHTML += '<p class="small-hint" style="text-align: center; padding: 10px;">Nadie ha buscado nada aún.</p>';
+        return;
+    }
+
+    state.searchHistory.forEach(item => {
+        const date = new Date(item.timestamp).toLocaleTimeString();
+        const typeBadge = item.type === 'exact' 
+            ? '<span style="background: var(--primary); padding: 2px 4px; border-radius: 4px; font-size: 0.65rem; color: white;">Exacta</span>'
+            : '<span style="background: #9333ea; padding: 2px 4px; border-radius: 4px; font-size: 0.65rem; color: white;">Semántica</span>';
+            
+        const el = document.createElement('div');
+        el.className = 'contact-card';
+        el.style.marginBottom = '5px';
+        el.innerHTML = `
+            <div class="contact-info" style="flex: 1;">
+                <span class="contact-name" style="font-size: 0.8rem;">"${item.query}"</span>
+                <div class="route-meta" style="margin-top: 2px; opacity: 0.7;">
+                    ${typeBadge} <span>por ${item.origin} a las ${date}</span>
+                </div>
+            </div>
+        `;
+        elements.searchHistoryContainer.appendChild(el);
+    });
+
+    const dumpBtn = document.getElementById('dump-search-history-btn');
+    if (dumpBtn) {
+        dumpBtn.addEventListener('click', async () => {
+            dumpBtn.disabled = true;
+            dumpBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Volcando...';
+            try {
+                const { commitSearchHistoryToGit } = await import('./git-manager.js');
+                await commitSearchHistoryToGit(state.searchHistory);
+                state.searchHistory = []; // Clear queue
+                renderSearchHistory();
+                const { updateLocationStatus } = await import('./utils.js');
+                updateLocationStatus('Historial volcado a Git', 'fa-check');
+            } catch (err) {
+                console.error(err);
+                dumpBtn.disabled = false;
+                dumpBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error';
+            }
+        });
+    }
 }
 
 /**
@@ -1654,4 +2302,55 @@ export function showSignalingStats() {
             </p>
         `;
     }
+}
+
+export function showStreamAvailableNotification(originId, originAlias, relayedBy = originId, relayedAlias = null) {
+    if (document.getElementById(`stream-notif-${originId}`)) return;
+    const notif = document.createElement('div');
+    notif.id = `stream-notif-${originId}`;
+    notif.className = 'stream-notification';
+    notif.style.position = 'fixed';
+    notif.style.top = '70px';
+    notif.style.left = '50%';
+    notif.style.transform = 'translateX(-50%)';
+    notif.style.backgroundColor = 'var(--primary)';
+    notif.style.color = '#fff';
+    notif.style.padding = '10px 15px';
+    notif.style.borderRadius = '20px';
+    notif.style.zIndex = '2000';
+    notif.style.boxShadow = '0 4px 6px rgba(0,0,0,0.3)';
+    notif.style.display = 'flex';
+    notif.style.alignItems = 'center';
+    notif.style.gap = '10px';
+    notif.style.fontSize = '0.85rem';
+    
+    let text = `${originAlias} está transmitiendo`;
+    if (relayedBy !== originId && relayedAlias) {
+        text += ` (vía ${relayedAlias})`;
+    }
+    
+    notif.innerHTML = `
+        <i class="fas fa-video pulse-edit"></i>
+        <span>${text}</span>
+        <button class="btn btn-success btn-xs" style="padding: 2px 8px;">Ver</button>
+        <button class="btn btn-outline btn-xs btn-close-notif" style="border:none; color:white;"><i class="fas fa-times"></i></button>
+    `;
+    notif.querySelector('.btn-success').addEventListener('click', () => {
+        if (state.connections[relayedBy] && state.connections[relayedBy].open) {
+            state.connections[relayedBy].send({ type: 'stream-request', origin: originId });
+            notif.querySelector('span').innerText = 'Conectando...';
+            setTimeout(() => { removeStreamAvailableNotification(originId); }, 3000);
+        } else {
+            alert(`No estás conectado directamente a ${relayedAlias || originAlias} para pedir el stream.`);
+        }
+    });
+    notif.querySelector('.btn-close-notif').addEventListener('click', () => {
+        removeStreamAvailableNotification(originId);
+    });
+    document.body.appendChild(notif);
+}
+
+export function removeStreamAvailableNotification(originId) {
+    const notif = document.getElementById(`stream-notif-${originId}`);
+    if (notif) notif.remove();
 }

@@ -1,0 +1,6 @@
+- PINGO
+    - PWA - Gps
+        - https://gemini.google.com/app/ee0306317ec3f31c
+
+    - Instant App (android)
+    - Nativas?

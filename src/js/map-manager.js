@@ -38,7 +38,7 @@ export function initMap() {
             console.log(`[Map] Manual location set: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
             updateMyMarker(lat, lng);
             // Dispatch event for geo-manager/main to broadcast
-            window.dispatchEvent(new CustomEvent('p2pt:manual-location', { detail: { lat, lng } }));
+            window.dispatchEvent(new CustomEvent('pingo:manual-location', { detail: { lat, lng } }));
         }
     });
 }

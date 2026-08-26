@@ -9,6 +9,13 @@ export const state = {
     myMarker: null,
     otherMarkers: {}, // peerId -> Leaflet marker
     connections: {}, // peerId -> DataConnection
+    mediaConnections: {}, // peerId -> MediaConnection
+    localStream: null, // MediaStream for camera or screen
+    relayedStreams: {}, // originId -> MediaStream (remote stream we are relaying)
+    streamTypes: {}, // originId -> 'camera' | 'screen'
+    activeVideoConnectionsCount: 0, // Number of peers we are streaming to
+    MAX_DIRECT_VIDEO_CONNECTIONS: 2, // Limit before redirecting
+    streamRegistry: {}, // originId -> { relayedBy: peerId, timestamp: number } (track who has which stream)
     myCoords: { lat: 0, lng: 0, accuracy: 0 },
     manualLocationMode: false,
     firstFix: true,
@@ -37,7 +44,7 @@ export const state = {
     seenMessages: new Set(), // Set of msgId strings
 
     // Route & Cartography state
-    uiMode: 'standard', // 'standard' | 'cartography'
+    uiMode: 'network', // 'network' | 'workspace' | 'comm' | 'location'
     routes: [], // Array of { id, name, creator, points, timestamp, version }
     isRecording: false,
     recordingPoints: [],
@@ -51,6 +58,13 @@ export const state = {
     // Runtime
     isPrimaryTab: true, // Default to true until checked
     persistenceMode: localStorage.getItem('pingo_persistence') === 'true',
+    
+    // Search & Privacy
+    allowExactSearchP2P: localStorage.getItem('pingo_allow_exact_search') === 'true',
+    allowSemanticSearchP2P: localStorage.getItem('pingo_allow_semantic_search') === 'true',
+    searchHistory: [], // Array of { queryId, query, type, origin, timestamp }
+    queryRoutingTable: new Map(), // Map of queryId -> receivedFromPeerId for reverse-path routing
+
     audioElement: null,
     deferredPrompt: null,
     wakeLock: null,
@@ -68,6 +82,9 @@ export const elements = {
     get statusIndicator() { return getEl('status-indicator'); },
     get locationStatus() { return getEl('location-status'); },
     get shareBtn() { return getEl('share-btn'); },
+    get shareCameraBtn() { return getEl('share-camera-btn'); },
+    get shareScreenBtn() { return getEl('share-screen-btn'); },
+    get videoContainer() { return getEl('video-container'); },
     get copyIdBtn() { return getEl('copy-id-btn'); },
     get geofenceToggle() { return getEl('geofence-toggle'); },
     get geofenceRadius() { return getEl('geofence-radius'); },
@@ -88,6 +105,7 @@ export const elements = {
     get chatBtn() { return getEl('chat-btn'); },
     get chatBadge() { return getEl('chat-badge'); },
     get chatPanel() { return getEl('chat-panel'); },
+    get chatTitle() { return getEl('chat-title'); },
     get closeChatBtn() { return getEl('close-chat-btn'); },
     get chatMessages() { return getEl('chat-messages'); },
     get chatInput() { return getEl('chat-input'); },
@@ -115,10 +133,14 @@ export const elements = {
     get importFileInput() { return getEl('import-file-input'); },
 
     // Routes UI
-    get modeStandardBtn() { return getEl('mode-standard-btn'); },
-    get modeCartographyBtn() { return getEl('mode-cartography-btn'); },
-    get routesPanel() { return getEl('routes-panel'); },
-    get connectionPanel() { return getEl('connection-panel'); },
+    get navNetworkBtn() { return getEl('nav-network-btn'); },
+    get navWorkspaceBtn() { return getEl('nav-workspace-btn'); },
+    get navCommBtn() { return getEl('nav-comm-btn'); },
+    get navLocationBtn() { return getEl('nav-location-btn'); },
+    get workspaceNetwork() { return getEl('workspace-network'); },
+    get workspaceEditor() { return getEl('workspace-editor'); },
+    get workspaceComm() { return getEl('workspace-comm'); },
+    get workspaceLocation() { return getEl('workspace-location'); },
     get agendaPanel() { return getEl('agenda-container'); }, 
     get routesContainer() { return getEl('routes-container'); },
     get startRecordingBtn() { return getEl('start-recording-btn'); },
@@ -161,11 +183,45 @@ export const elements = {
     get vectorIndexBar() { return getEl('vector-index-bar'); },
     get vectorIndexStatus() { return getEl('vector-index-status'); },
     get semanticSearchInput() { return getEl('semantic-search-input'); },
+    get searchTypeExact() { return getEl('search-type-exact'); },
+    get searchTypeSemantic() { return getEl('search-type-semantic'); },
+    get allowExactSearchToggle() { return getEl('allow-exact-search-toggle'); },
+    get allowSemanticSearchToggle() { return getEl('allow-semantic-search-toggle'); },
+    get searchHistoryContainer() { return getEl('search-history-container'); },
     
     // Connection Stats
     get connStatsModal() { return getEl('conn-stats-modal'); },
     get connStatsTitle() { return getEl('conn-stats-title'); },
     get connStatsViz() { return getEl('conn-stats-viz'); },
     get connStatsDetails() { return getEl('conn-stats-details'); },
-    get connStatsClose() { return getEl('conn-stats-close'); }
+    get connStatsClose() { return getEl('conn-stats-close'); },
+
+    // Gitgraph
+    get viewGitgraphBtn() { return getEl('view-gitgraph-btn'); },
+    get gitgraphModal() { return getEl('gitgraph-modal'); },
+    get gitgraphContainer() { return getEl('gitgraph-container'); },
+    get gitgraphClose() { return getEl('gitgraph-close'); },
+
+    // Server Configuration
+    get openServerConfigBtn() { return getEl('open-server-config-btn'); },
+    get serverConfigModal() { return getEl('server-config-modal'); },
+    get serverConfigCloseBtn() { return getEl('server-config-close'); },
+    get serverConfigCancelBtn() { return getEl('server-config-cancel'); },
+    get serverConfigSaveBtn() { return getEl('server-config-save'); },
+    get serverConfigResetBtn() { return getEl('server-config-reset'); },
+    get serverConfigTestBtn() { return getEl('server-config-test'); },
+    get serverConfigImportBtn() { return getEl('server-config-import-btn'); },
+    get serverConfigImportModal() { return getEl('server-config-import-modal'); },
+    get serverConfigImportModalClose() { return getEl('server-config-import-modal-close'); },
+    get serverConfigImportModalApply() { return getEl('server-config-import-modal-apply'); },
+    get serverConfigImportJsonTextarea() { return getEl('server-config-import-json'); },
+    get serverSignalingHost() { return getEl('server-signaling-host'); },
+    get serverSignalingPort() { return getEl('server-signaling-port'); },
+    get serverSignalingPath() { return getEl('server-signaling-path'); },
+    get serverSignalingSecure() { return getEl('server-signaling-secure'); },
+    get serverTurnUrls() { return getEl('server-turn-urls'); },
+    get serverTurnUser() { return getEl('server-turn-user'); },
+    get serverTurnPass() { return getEl('server-turn-pass'); },
+    get serverCloudApi() { return getEl('server-cloud-api'); },
+    get serverTestStatus() { return getEl('server-test-status'); }
 };

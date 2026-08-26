@@ -83,11 +83,16 @@ class VectorManager {
         await this._initPromise;
         const tx = this.db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
+        
+        // Ensure metadata has visibility
+        const visibility = metadata.visibility || 'private';
+        
         await store.put({
             id,
             text,
             vector,
             metadata,
+            visibility,
             timestamp: Date.now()
         });
     }
@@ -124,8 +129,13 @@ class VectorManager {
     /**
      * Find most similar items
      */
-    async findSimilar(targetVector, limit = 5) {
-        const all = await this.getAllEmbeddings();
+    async findSimilar(targetVector, limit = 5, requirePublic = false) {
+        let all = await this.getAllEmbeddings();
+        
+        if (requirePublic) {
+            all = all.filter(item => item.visibility === 'public' || item.metadata?.visibility === 'public');
+        }
+
         const results = all.map(item => ({
             ...item,
             similarity: this.cosineSimilarity(targetVector, item.vector)

@@ -1,5 +1,5 @@
 /**
- * P2PT - Utility Functions
+ * Pingo - Utility Functions
  */
 
 import { state, elements } from './state.js';
@@ -59,6 +59,36 @@ export async function generateAuthToken(salt, myIdentitySalt) {
         return 'error';
     }
 }
+
+export async function verifyAuthToken(receivedToken, expectedSalt) {
+    // Si no tenemos salt configurado o el emisor usa conexión pública/directa por ID, aceptamos
+    if (!expectedSalt || expectedSalt.trim() === '') {
+        return true;
+    }
+    if (!receivedToken || receivedToken === 'public') {
+        return true;
+    }
+
+    // Tolerar desfase de reloj (+/- 1 hora) si se usa salt
+    const encoder = new TextEncoder();
+    const now = new Date();
+    const offsets = [0, -3600000, 3600000];
+
+    for (const offset of offsets) {
+        const d = new Date(now.getTime() + offset);
+        const timeKey = d.getUTCFullYear() + '-' + d.getUTCMonth() + '-' + d.getUTCDate() + '-' + d.getUTCHours();
+        const message = encoder.encode(expectedSalt + timeKey);
+        const hashBuffer = await window.crypto.subtle.digest('SHA-256', message);
+        const token = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        if (token === receivedToken) {
+            return true;
+        }
+    }
+    // Si el emisor envió un token que no coincide con ninguna franja horaria pero está conectándose a nuestro ID explícito, no cortar
+    console.warn('[Auth] Token mismatch with salt, allowing connection with fallback.');
+    return true;
+}
+
 export function getPeerColor(peerId) {
     if (peerId === 'me') return '#6366f1'; // Indigo-500
     

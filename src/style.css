@@ -1,21 +1,32 @@
 :root {
     --primary: #6366f1;
     --primary-hover: #4f46e5;
+    --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+    --primary-glow: rgba(99, 102, 241, 0.35);
     --whatsapp: #25d366;
     --whatsapp-hover: #128c7e;
-    --bg-dark: rgba(15, 23, 42, 0.8);
+    --bg-app: #080c14;
+    --bg-dark: rgba(13, 19, 33, 0.95);
+    --bg-surface: #0f172a;
+    --bg-card: rgba(30, 41, 59, 0.7);
+    --bg-card-hover: rgba(51, 65, 85, 0.85);
+    --bg-input: rgba(15, 23, 42, 0.9);
     --text-light: #f8fafc;
     --text-dim: #94a3b8;
-    --glass-border: rgba(255, 255, 255, 0.1);
+    --text-muted: #64748b;
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-border-focus: rgba(129, 140, 248, 0.5);
     --danger: #ef4444;
     --success: #22c55e;
+    --border-radius: 12px;
 }
 
 body, html {
     height: 100%;
     width: 100%;
     font-family: 'Outfit', sans-serif;
-    background-color: #020617;
+    background-color: var(--bg-app);
+    color: var(--text-light);
     margin: 0;
     padding: 0;
     overscroll-behavior-y: contain; /* Prevent browser pull-to-refresh on map */
@@ -26,7 +37,7 @@ body, html {
     flex-direction: column;
     height: 100vh;
     width: 100%;
-    background-color: #020617;
+    background-color: var(--bg-app);
     overflow: hidden; /* Fix layout to viewport */
 }
 
@@ -36,8 +47,8 @@ header {
 
 header, footer, #settings-panel {
     background: var(--bg-dark);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--glass-border);
     padding: 10px 20px;
     color: var(--text-light);
@@ -475,6 +486,10 @@ input:-webkit-autofill:focus {
     background: rgba(255, 255, 255, 0.05);
     border-radius: 8px;
     border-left: 3px solid var(--primary);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 .contact-status-dot {
@@ -507,22 +522,31 @@ input:-webkit-autofill:focus {
 
 .contact-info {
     flex: 1;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .contact-name {
     font-weight: 600;
     font-size: 0.9rem;
     display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .contact-id-hint {
     font-size: 0.7rem;
     color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .contact-actions {
     display: flex;
     gap: 5px;
+    flex-shrink: 0;
 }
 
 /* Inline Form */
@@ -844,23 +868,24 @@ input:-webkit-autofill:focus {
 
 /* Working Copy Banner */
 .working-copy-banner {
-    position: absolute;
-    top: 15px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(15, 23, 42, 0.7);
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 12px;
+    background: rgba(15, 23, 42, 0.85);
     backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
     color: white;
-    padding: 10px 20px;
-    border-radius: 30px;
+    padding: 10px 14px;
+    border-radius: 12px;
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 15px;
-    z-index: 1100;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    gap: 10px;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    animation: slideDownFade 0.4s ease-out;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    animation: slideDownFade 0.3s ease-out;
 }
 
 .wc-content {
@@ -904,8 +929,10 @@ input:-webkit-autofill:focus {
     font-size: 0.7rem;
     color: var(--text-dim);
     display: flex;
-    gap: 10px;
+    flex-wrap: wrap;
+    gap: 4px 8px;
     margin-top: 4px;
+    max-width: 100%;
 }
 
 .route-meta span {
@@ -945,32 +972,48 @@ input:-webkit-autofill:focus {
 }
 
 .guide-header {
-    padding: 12px 15px;
+    padding: 10px 14px;
     cursor: pointer;
     list-style: none;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     color: var(--text-light);
+    user-select: none;
 }
 
 .guide-header::-webkit-details-marker {
     display: none;
 }
 
-.guide-header i:first-child {
-    color: var(--primary);
-    width: 20px;
-    text-align: center;
+.guide-icon-badge {
+    font-size: 1.05rem;
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: rgba(99, 102, 241, 0.15);
+    border-radius: 8px;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.guide-title {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.35;
+    word-break: break-word;
 }
 
 .guide-header .chevron {
-    margin-left: auto;
-    font-size: 0.8rem;
+    flex-shrink: 0;
+    font-size: 0.75rem;
     color: var(--text-dim);
     transition: transform 0.3s ease;
+    padding-left: 4px;
 }
 
 .guide-item[open] .chevron {
@@ -978,19 +1021,127 @@ input:-webkit-autofill:focus {
 }
 
 .guide-content {
-    padding: 0 15px 15px 47px;
-    font-size: 0.85rem;
+    padding: 12px 14px 16px 14px;
+    font-size: 0.84rem;
     color: var(--text-dim);
-    line-height: 1.5;
+    line-height: 1.6;
     animation: fadeIn 0.3s ease;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.guide-content strong {
+.guide-content h3 {
+    font-size: 0.9rem;
+    color: #ffffff;
+    margin: 14px 0 6px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.guide-content ul, .guide-content ol {
+    padding-left: 18px;
+    margin: 6px 0 10px 0;
+}
+
+.guide-content li {
+    margin-bottom: 6px;
+}
+
+.guide-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 0.78rem;
+}
+
+.guide-content th, .guide-content td {
+    padding: 6px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.guide-content th {
+    background: rgba(99, 102, 241, 0.18);
     color: var(--text-light);
 }
 
-.guide-content p {
-    margin: 8px 0;
+/* Tours Grid & Interactive Cards */
+.tours-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.tour-card-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: left;
+    outline: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.tour-card-btn:hover {
+    background: rgba(49, 46, 129, 0.35);
+    border-color: #818cf8;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(99, 102, 241, 0.25);
+}
+
+.tour-card-btn:active {
+    transform: translateY(0);
+}
+
+.tour-card-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    color: #818cf8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+
+.tour-card-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.tour-card-num {
+    font-size: 0.65rem;
+    color: #818cf8;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+}
+
+.tour-card-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #f8fafc;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    line-height: 1.3;
+}
+
+@media (max-width: 360px) {
+    .tours-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Agenda & Sharing Improvements v66 */
@@ -1238,3 +1389,494 @@ input:-webkit-autofill:focus {
 .conn-details p strong {
     color: white;
 }
+
+/* Video Streaming Styles */
+.video-container {
+    position: absolute;
+    top: 70px; /* Below header */
+    right: 10px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none; /* Let clicks pass through empty areas */
+}
+
+.video-container > * {
+    pointer-events: auto; /* Re-enable clicks for actual video wrappers */
+}
+
+.video-wrapper {
+    transition: width 0.3s ease;
+    cursor: pointer;
+}
+
+.video-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90%;
+}
+
+.stream-notification {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from { transform: translate(-50%, -100%); opacity: 0; }
+    to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+/* Video Call Layout Styles */
+#video-container {
+    pointer-events: none; /* Let clicks pass through to map where there is no video */
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: flex-start;
+    padding: 10px;
+    gap: 10px;
+    box-sizing: border-box;
+    z-index: 1600; /* Mayor que el chat (1500) para que no quede debajo */
+}
+
+.video-wrapper {
+    pointer-events: auto;
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    border: 2px solid var(--primary);
+    background-color: #000;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    cursor: pointer;
+}
+
+.video-wrapper.camera-view {
+    width: 150px;
+    max-height: 250px;
+}
+
+.video-wrapper.camera-view.enlarged {
+    width: 300px;
+    z-index: 1001;
+}
+
+.video-wrapper.screen-share-view {
+    width: 85vw;
+    max-width: 1000px;
+    max-height: 80vh;
+    order: -1; /* Make it appear first/largest */
+    align-self: center; /* Center in cross axis if possible */
+    margin: 0 auto; /* Center horizontally if flex allows */
+    z-index: 500;
+}
+
+.video-wrapper.screen-share-view.enlarged {
+    width: 95vw;
+    max-width: none;
+    z-index: 1001;
+}
+
+
+/* WORKSPACE LAYOUT & RESPONSIVE CONTAINERS */
+#main-content {
+    background-color: var(--bg-dark);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.workspace-panel {
+    animation: fadeIn 0.3s ease-out;
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden !important;
+    overflow-y: auto;
+    padding: 12px 16px;
+}
+
+#workspace-location {
+    padding: 0 !important;
+    overflow: hidden !important;
+    position: relative;
+}
+
+/* Ensure all flex rows and forms inside panels never exceed viewport width on mobile */
+.inline-form, 
+.geofence-container, 
+.agenda-list, 
+.identity-container,
+.chat-panel,
+#global-search-section,
+.actions,
+.actions-row,
+.input-group-row,
+.form-actions-row,
+.geofence-row-inline {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* Flex items with inputs/buttons must allow shrinking below content size to prevent mobile overflow */
+.input-group-row > *,
+.actions-row > *,
+.form-actions-row > *,
+.inline-form div[style*="display: flex"] > * {
+    min-width: 0 !important;
+    box-sizing: border-box;
+}
+
+#workspace-comm #video-container {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    height: auto;
+    min-height: 0;
+    max-height: 40vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    pointer-events: auto;
+}
+
+#workspace-comm .chat-panel {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    max-height: 380px;
+    border-radius: var(--border-radius);
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+}
+
+#workspace-comm #global-search-section {
+    background: var(--bg-card);
+    padding: 14px;
+    border-radius: var(--border-radius);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+/* Location Controls Floating Overlay */
+.location-controls-panel {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    max-width: 360px;
+    margin: 0 auto;
+    background: rgba(13, 19, 33, 0.94);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+@media (min-width: 768px) {
+    .location-controls-panel {
+        left: auto;
+        right: 16px;
+        top: 16px;
+        bottom: auto;
+        margin: 0;
+    }
+}
+
+.location-controls-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-light);
+    user-select: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.location-controls-header:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.location-controls-body {
+    padding: 12px 14px;
+    max-height: 48vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: all 0.3s ease;
+}
+
+.location-controls-panel.collapsed .location-controls-body {
+    display: none;
+}
+
+.location-controls-panel.collapsed .location-controls-header {
+    border-bottom: none;
+}
+
+.location-controls-panel.collapsed #location-controls-chevron {
+    transform: rotate(180deg);
+}
+
+/* ==========================================================================
+   INTERACTIVE DEMO TOUR / ONBOARDING STYLES (ENHANCED & SHARP CONTRAST)
+   ========================================================================== */
+.tour-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1000000 !important;
+    pointer-events: none;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.tour-container.tour-active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.tour-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(4, 7, 18, 0.45);
+    backdrop-filter: blur(1.5px);
+    -webkit-backdrop-filter: blur(1.5px);
+    cursor: default;
+    z-index: 1;
+}
+
+.tour-spotlight {
+    position: absolute;
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(4, 7, 18, 0.45),
+                0 0 22px 4px rgba(129, 140, 248, 0.8),
+                inset 0 0 8px rgba(129, 140, 248, 0.35);
+    border: 2px solid #818cf8;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    z-index: 2;
+    animation: tourPulse 2.2s infinite ease-in-out;
+}
+
+@keyframes tourPulse {
+    0%, 100% {
+        border-color: #818cf8;
+        box-shadow: 0 0 0 9999px rgba(4, 7, 18, 0.45), 0 0 16px 2px rgba(129, 140, 248, 0.65);
+    }
+    50% {
+        border-color: #a5b4fc;
+        box-shadow: 0 0 0 9999px rgba(4, 7, 18, 0.45), 0 0 28px 6px rgba(165, 180, 252, 0.95);
+    }
+}
+
+/* Elevated interactive target */
+.tour-highlighted-target {
+    cursor: pointer !important;
+}
+
+.tour-popover {
+    position: absolute;
+    width: 340px;
+    max-width: 92vw;
+    background: #0f172a;
+    border: 1px solid rgba(129, 140, 248, 0.5);
+    border-radius: 16px;
+    padding: 18px;
+    color: #f8fafc;
+    box-shadow: 0 20px 45px -5px rgba(0, 0, 0, 0.9), 0 0 25px rgba(99, 102, 241, 0.3);
+    z-index: 10;
+    pointer-events: auto;
+    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.tour-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tour-step-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #a5b4fc;
+    background: rgba(99, 102, 241, 0.25);
+    padding: 4px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(129, 140, 248, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.tour-close-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    font-size: 0.85rem;
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.tour-close-btn:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+.tour-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.2px;
+}
+
+.tour-body {
+    font-size: 0.88rem;
+    color: #cbd5e1;
+    line-height: 1.5;
+}
+
+.tour-body strong {
+    color: #ffffff;
+}
+
+.tour-progress-bar {
+    width: 100%;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 4px 0 6px 0;
+}
+
+.tour-progress-fill {
+    height: 100%;
+    background: var(--primary-gradient);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.tour-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    width: 100%;
+}
+
+.tour-footer-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Tour Buttons */
+.tour-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 38px;
+}
+
+.tour-btn-primary {
+    background: var(--primary-gradient);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.tour-btn-primary:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+}
+
+.tour-btn-outline {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #cbd5e1;
+}
+
+.tour-btn-outline:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.tour-btn-ghost {
+    background: transparent;
+    color: #94a3b8;
+    padding: 8px 10px;
+}
+
+.tour-btn-ghost:hover {
+    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+@media (max-width: 480px) {
+    .tour-popover {
+        padding: 14px;
+        border-radius: 14px;
+    }
+    .tour-footer {
+        flex-wrap: nowrap;
+    }
+    .tour-btn {
+        padding: 8px 10px;
+        font-size: 0.8rem;
+    }
+}
+

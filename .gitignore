@@ -1,15 +1,8 @@
 node_modules/
 dist/
-.env
-.env.*
-.DS_Store
-
-# Capacitor
+server/dist/
+android/
 ios/
-capacitor.config.json.tmp
-# Security
-*.pem
-*.jks
-*.p12
-*.key
-.dev.vars
+.DS_Store
+test-results/
+playwright-report/

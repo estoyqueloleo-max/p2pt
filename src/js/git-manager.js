@@ -76,7 +76,7 @@ export async function commitRoute(routeId, routeData, message) {
 /**
  * Save an arbitrary text file to the filesystem and commit it (e.g. YouTube links)
  */
-export async function commitLinkFile(filename, content) {
+export async function commitLinkFile(filename, content, visibility = 'private') {
     const filepath = `${REPO_DIR}/${filename}`;
     
     try {
@@ -86,11 +86,13 @@ export async function commitLinkFile(filename, content) {
         await pfs.writeFile(filepath, content);
         await git.add({ fs, dir: REPO_DIR, filepath: filename });
         
+        const message = `Update text file: ${filename}\n\nFile: ${filename}\nVisibility: ${visibility}`;
+
         const sha = await git.commit({
             fs,
             dir: REPO_DIR,
-            author: { name: 'Pingo YouTube', email: 'user@pingo.local' },
-            message: `Save captured link: ${filename}`
+            author: { name: 'Pingo User', email: 'user@pingo.local' },
+            message: message
         });
         
         console.log(`[Git] Committed text file ${filename}. SHA: ${sha}`);
@@ -389,6 +391,22 @@ export async function forceSyncWithRemote(type, remoteUrl, username, token) {
  */
 export async function loadRoutesFromGit() {
     try {
+        // 1. Extraer metadatos de visibilidad del historial (de más viejo a más nuevo)
+        const visibilityMap = {};
+        try {
+            const commits = await git.log({ fs, dir: REPO_DIR });
+            for (let i = commits.length - 1; i >= 0; i--) {
+                const msg = commits[i].commit.message;
+                const fileMatch = msg.match(/^File:\s*(.+)$/m);
+                const visMatch = msg.match(/^Visibility:\s*(.+)$/m);
+                if (fileMatch && visMatch) {
+                    visibilityMap[fileMatch[1].trim()] = visMatch[1].trim();
+                }
+            }
+        } catch (e) {
+            console.warn('[Git] Could not parse log for visibilities', e);
+        }
+
         const files = await pfs.readdir(REPO_DIR);
         // Filtramos tanto JSON (rutas) como TXT (links capturados)
         const allFiles = files.filter(f => f.endsWith('.json') || f.endsWith('.txt'));
@@ -422,11 +440,14 @@ export async function loadRoutesFromGit() {
                     if (title.length > 30) title = title.substring(0, 27) + '...';
                 }
                 
+                let visibility = visibilityMap[file] || 'private';
+                
                 items.push({
                     id: file,
                     type: type,
                     name: title,
                     url: url,
+                    visibility: visibility,
                     timestamp: timestamp,
                     stats: { points: 0 } 
                 });
@@ -469,5 +490,80 @@ export async function deleteGitRepo() {
         console.error('[Git] Error wiping repository:', err);
         // If it failed because it doesn't exist, that's fine too
         return true; 
+    }
+}
+
+/**
+ * Append search history to a markdown file in Git
+ */
+export async function commitSearchHistoryToGit(historyArray) {
+    const filename = '_inbox_busquedas/diario.md';
+    const dirpath = `${REPO_DIR}/_inbox_busquedas`;
+    const filepath = `${REPO_DIR}/${filename}`;
+    
+    try {
+        await initGitRepo();
+        
+        try { await pfs.mkdir(dirpath); } catch (e) {}
+
+        let content = '# Diario de Búsquedas en la Red\n\n';
+        try {
+            content = await pfs.readFile(filepath, 'utf8');
+            if (!content.endsWith('\n')) content += '\n';
+        } catch (e) {}
+
+        let addedCount = 0;
+        for (const item of historyArray) {
+            const dateStr = new Date(item.timestamp).toISOString().replace('T', ' ').substring(0, 16);
+            const typeStr = item.type === 'exact' ? 'Exacta' : 'Semántica';
+            content += `- **[${dateStr}]** ${typeStr}: "${item.query}" (por ${item.origin})\n`;
+            addedCount++;
+        }
+
+        if (addedCount === 0) return null;
+
+        await pfs.writeFile(filepath, content);
+        await git.add({ fs, dir: REPO_DIR, filepath: filename });
+        
+        const sha = await git.commit({
+            fs,
+            dir: REPO_DIR,
+            author: { name: 'Pingo System', email: 'system@pingo.local' },
+            message: `Update search analytics: ${addedCount} new entries`
+        });
+        
+        console.log(`[Git] Committed search history. SHA: ${sha}`);
+        return sha;
+    } catch (err) {
+        console.error('[Git] Commit search history error:', err);
+        throw err;
+    }
+}
+
+/**
+ * Get all commits formatted for Gitgraph visualization
+ */
+export async function getAllCommitsGraph() {
+    try {
+        await initGitRepo();
+        
+        // Obtenemos todos los commits
+        const commits = await git.log({ fs, dir: REPO_DIR });
+        
+        // Obtenemos las ramas (branches) para saber dónde apuntan
+        const branches = await git.listBranches({ fs, dir: REPO_DIR });
+        const branchPointers = {}; // commit_hash -> branch_name
+        
+        for (const b of branches) {
+            const sha = await git.resolveRef({ fs, dir: REPO_DIR, ref: b });
+            branchPointers[sha] = b;
+        }
+
+        // Devolvemos el array de commits con la info necesaria
+        // El log viene ordenado del más nuevo al más viejo
+        return { commits, branchPointers };
+    } catch (err) {
+        console.error('[Git] Error getting all commits graph:', err);
+        return { commits: [], branchPointers: {} };
     }
 }
