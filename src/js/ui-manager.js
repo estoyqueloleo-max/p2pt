@@ -1,3 +1,5 @@
+import { startCameraQRScanner, stopCameraQRScanner, scanImageFile } from './qr-scanner.js';
+import { discoverServerByTopic } from './topic-discovery.js';
 /**
  * Pingo - UI Management
  */
@@ -1305,6 +1307,96 @@ export function setupEventListeners() {
     if (elements.serverConfigImportModalClose) {
         elements.serverConfigImportModalClose.addEventListener('click', () => {
             if (elements.serverConfigImportModal) elements.serverConfigImportModal.style.display = 'none';
+        });
+    }
+
+    
+    // QR Camera Scanner & Topic Auto-Discovery Listeners
+    const openQRScannerModal = () => {
+        if (elements.qrCameraScannerModal) {
+            elements.qrCameraScannerModal.style.display = 'flex';
+            startCameraQRScanner(elements.qrVideo, elements.qrCanvas, elements.qrScannerFeedback, (qrData) => {
+                try {
+                    const parsed = parseServerConfigData(qrData);
+                    applyParsedServerConfig(parsed, '¡Código QR leído con éxito! ✅');
+                    if (elements.qrCameraScannerModal) elements.qrCameraScannerModal.style.display = 'none';
+                    if (elements.serverConfigImportModal) elements.serverConfigImportModal.style.display = 'none';
+                } catch (err) {
+                    alert(`QR leído pero error al interpretar configuración: ${err.message}`);
+                }
+            });
+        }
+    };
+
+    if (elements.serverConfigScanQrBtn) {
+        elements.serverConfigScanQrBtn.addEventListener('click', openQRScannerModal);
+    }
+
+    if (elements.serverImportScanCameraBtn) {
+        elements.serverImportScanCameraBtn.addEventListener('click', openQRScannerModal);
+    }
+
+    if (elements.qrCameraCloseBtn) {
+        elements.qrCameraCloseBtn.addEventListener('click', () => {
+            stopCameraQRScanner();
+            if (elements.qrCameraScannerModal) elements.qrCameraScannerModal.style.display = 'none';
+        });
+    }
+
+    if (elements.qrFileInput) {
+        elements.qrFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            try {
+                if (elements.qrScannerFeedback) elements.qrScannerFeedback.textContent = 'Analizando imagen...';
+                const qrData = await scanImageFile(file, elements.qrCanvas);
+                const parsed = parseServerConfigData(qrData);
+                applyParsedServerConfig(parsed, '¡Código QR de imagen procesado! ✅');
+                stopCameraQRScanner();
+                if (elements.qrCameraScannerModal) elements.qrCameraScannerModal.style.display = 'none';
+                if (elements.serverConfigImportModal) elements.serverConfigImportModal.style.display = 'none';
+            } catch (err) {
+                alert(err.message || 'Error al procesar la imagen');
+                if (elements.qrScannerFeedback) elements.qrScannerFeedback.textContent = err.message;
+            }
+        });
+    }
+
+    // Auto-descubrimiento por Red Comunitaria / Topic P2P
+    if (elements.serverCommunityDiscoverBtn) {
+        elements.serverCommunityDiscoverBtn.addEventListener('click', async () => {
+            const topic = elements.serverCommunityTopicInput ? elements.serverCommunityTopicInput.value.trim() : '';
+            if (!topic) {
+                alert('Escribe el Nombre de Red o Topic ID (ej. pingo-public-mesh).');
+                return;
+            }
+
+            const statusEl = elements.serverCommunityStatus;
+            if (statusEl) {
+                statusEl.style.display = 'block';
+                statusEl.style.background = 'rgba(99, 102, 241, 0.15)';
+                statusEl.style.color = '#818cf8';
+                statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Explorando red P2P...';
+            }
+
+            try {
+                const config = await discoverServerByTopic(topic, (msg) => {
+                    if (statusEl) statusEl.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${msg}`;
+                });
+
+                applyParsedServerConfig(config, '¡Servidor descubierto por Red Comunitaria! ✅');
+                if (statusEl) {
+                    statusEl.style.background = 'rgba(34, 197, 94, 0.15)';
+                    statusEl.style.color = '#4ade80';
+                    statusEl.innerHTML = '<i class="fas fa-check-circle"></i> ¡Servidor de Red Comunitaria detectado y configurado!';
+                }
+            } catch (err) {
+                if (statusEl) {
+                    statusEl.style.background = 'rgba(239, 68, 68, 0.15)';
+                    statusEl.style.color = '#f87171';
+                    statusEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${err.message}`;
+                }
+            }
         });
     }
 

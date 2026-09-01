@@ -476,6 +476,22 @@
         <div class="modal-body" style="overflow-y: auto; padding: 15px; flex: 1; display: flex; flex-direction: column; gap: 15px;">
             <p class="small-hint" style="margin-top: 0;">Configura servidores de señalización PeerJS y relés STUN/TURN propios (ej. binario Go de Pingo o Coturn).</p>
             
+            <!-- Red Comunitaria / Topic P2P Auto-descubrimiento -->
+            <div class="server-config-group" style="background: rgba(99, 102, 241, 0.08); padding: 12px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.35);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                    <h4 style="margin: 0; font-size: 0.9rem; color: var(--primary);"><i class="fas fa-key"></i> Red Comunitaria / Topic P2P</h4>
+                    <span style="font-size: 0.7rem; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Tracker Activo</span>
+                </div>
+                <p class="small-hint" style="margin: 0 0 8px 0; font-size: 0.75rem;">Si tu Raspberry Pi o servidor tiene una Red Comunitaria configurada, escríbela aquí para autoconfigurarte:</p>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="server-community-topic" placeholder="pingo-public-mesh" style="flex: 1; font-size: 0.85rem; padding: 6px 10px; border-radius: 6px;" />
+                    <button type="button" class="btn btn-primary btn-sm" id="server-community-discover-btn" style="white-space: nowrap; display: flex; align-items: center; gap: 5px;">
+                        <i class="fas fa-bolt"></i> Auto-descubrir
+                    </button>
+                </div>
+                <div id="server-community-status" style="display: none; font-size: 0.75rem; margin-top: 6px; padding: 4px 8px; border-radius: 4px;"></div>
+            </div>
+
             <div class="server-config-group" style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color, rgba(255,255,255,0.1));">
                 <h4 style="margin: 0 0 10px 0; font-size: 0.9rem; color: var(--primary);"><i class="fas fa-satellite-dish"></i> Señalización (PeerJS)</h4>
                 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom: 8px;">
@@ -532,8 +548,11 @@
             </div>
 
             <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; align-items: center;">
+                <button class="btn btn-primary btn-xs" id="server-config-scan-qr-btn" style="display: flex; align-items: center; gap: 5px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none;">
+                    <i class="fas fa-camera"></i> 📷 Escanear QR con Cámara
+                </button>
                 <button class="btn btn-outline btn-xs" id="server-config-import-btn" style="display: flex; align-items: center; gap: 5px;">
-                    <i class="fas fa-file-import"></i> Importar JSON / QR
+                    <i class="fas fa-file-import"></i> Pegar JSON / Link
                 </button>
                 <button class="btn btn-outline btn-xs" id="server-config-reset" style="display: flex; align-items: center; gap: 5px; opacity: 0.8;">
                     <i class="fas fa-undo"></i> Valores por Defecto
@@ -563,9 +582,40 @@
             <p class="small-hint" style="margin-top: 0;">Pega el bloque JSON generado por tu servidor ejecutable de Pingo o el enlace de configuración:</p>
             <textarea id="server-config-import-json" rows="6" style="width: 100%; font-family: monospace; font-size: 0.8rem; padding: 8px; box-sizing: border-box; background: rgba(0,0,0,0.3); color: #38bdf8; border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 6px;" placeholder='{ "signaling": { "host": "192.168.1.50", "port": 9000 } }'></textarea>
         </div>
-        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
-            <button class="btn btn-outline" id="server-config-import-modal-close">Cancelar</button>
-            <button class="btn btn-primary" id="server-config-import-modal-apply">Aplicar</button>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+            <button class="btn btn-outline btn-xs" id="server-import-scan-camera-btn" style="display: flex; align-items: center; gap: 5px;">
+                <i class="fas fa-camera"></i> Escanear con Cámara
+            </button>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-outline" id="server-config-import-modal-close">Cancelar</button>
+                <button class="btn btn-primary" id="server-config-import-modal-apply">Aplicar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Escáner QR con Cámara en Vivo -->
+<div class="modal-overlay" id="qr-camera-scanner-modal" style="display: none; z-index: 10002;">
+    <div class="modal-content" style="max-width: 90%; width: 420px; text-align: center;">
+        <div class="modal-header">
+            <i class="fas fa-qrcode modal-icon"></i>
+            <h3 style="margin: 0;">Escanear Código QR</h3>
+        </div>
+        <div class="modal-body" style="padding: 15px;">
+            <p class="small-hint" style="margin-top: 0;">Apunta la cámara al código QR mostrado en el Dashboard de tu servidor.</p>
+            <div style="position: relative; width: 100%; max-width: 280px; margin: 0 auto; aspect-ratio: 1; overflow: hidden; border-radius: 12px; background: #000; border: 2px solid var(--primary);">
+                <video id="qr-video" style="width: 100%; height: 100%; object-fit: cover;" playsinline></video>
+                <canvas id="qr-canvas" style="display: none;"></canvas>
+                <div style="position: absolute; inset: 12%; border: 2px dashed rgba(255,255,255,0.7); border-radius: 8px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);"></div>
+            </div>
+            <div id="qr-scanner-feedback" style="margin-top: 10px; font-size: 0.8rem; color: var(--text-muted);">Iniciando cámara...</div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="btn btn-outline btn-xs" style="cursor: pointer; margin: 0; display: inline-flex; align-items: center; gap: 5px;">
+                <i class="fas fa-image"></i> Subir Imagen
+                <input type="file" id="qr-file-input" accept="image/*" style="display: none;" />
+            </label>
+            <button class="btn btn-outline" id="qr-camera-close-btn">Cerrar</button>
         </div>
     </div>
 </div>

@@ -18,6 +18,7 @@
     "@isomorphic-git/lightning-fs": "^4.6.2",
     "cordova-plugin-inappbrowser": "^6.0.0",
     "isomorphic-git": "^1.37.5",
+    "jsqr": "^1.4.0",
     "leaflet": "^1.9.4",
     "marked": "^18.0.0",
     "pako": "^2.1.0",
