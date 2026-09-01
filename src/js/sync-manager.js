@@ -117,7 +117,7 @@ export function getGitProxyUrl(targetUrl) {
     }
 
     const cloudConfig = JSON.parse(localStorage.getItem('pingo_cloud_config') || '{}');
-    const endpoint = cloudConfig.apiEndpoint || 'https://pingo-cloud.accreativos.com';
+    const endpoint = cloudConfig.apiEndpoint || DEFAULT_SERVER_CONFIG.cloud.apiEndpoint;
     
     // Remote original protocol
     const cleanUrl = targetUrl.replace(/^https?:\/\//, '');

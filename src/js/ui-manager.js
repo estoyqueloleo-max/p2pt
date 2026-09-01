@@ -2284,7 +2284,7 @@ export function showSignalingStats() {
     // Render Details
     if (elements.connStatsDetails) {
         const peerId = state.myPeerId || 'n/a';
-        const server = state.peer?._options?.host || 'peerjs-server.accreativos.com';
+        const server = state.peer?._options?.host || DEFAULT_SERVER_CONFIG.signaling.host;
         const port = state.peer?._options?.port || 443;
         const secure = state.peer?._options?.secure ? 'Sí' : 'No';
         
