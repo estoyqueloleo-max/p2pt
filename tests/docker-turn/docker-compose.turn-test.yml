@@ -1,0 +1,56 @@
+services:
+  pingo-server:
+    build:
+      context: ../../
+      dockerfile: tests/docker-turn/Dockerfile.test
+    container_name: pingo_turn_server
+    command: ["/usr/local/bin/pingo-server", "-no-upnp", "-port=9000", "-turn-port=3478", "-public-ip=172.31.1.2", "-user=pingo", "-password=pingosecret", "-realm=pingo"]
+    networks:
+      net_a:
+        ipv4_address: 172.31.1.2
+      net_b:
+        ipv4_address: 172.31.2.2
+
+  receiver:
+    build:
+      context: ../../
+      dockerfile: tests/docker-turn/Dockerfile.test
+    container_name: pingo_receiver_peer
+    command: ["/usr/local/bin/peer-test", "-role=receiver", "-turn=172.31.2.2:3478", "-user=pingo", "-pass=pingosecret"]
+    networks:
+      net_b:
+        ipv4_address: 172.31.2.20
+    volumes:
+      - shared_exchange:/tmp
+    depends_on:
+      - pingo-server
+
+  sender:
+    build:
+      context: ../../
+      dockerfile: tests/docker-turn/Dockerfile.test
+    container_name: pingo_sender_peer
+    command: ["/usr/local/bin/peer-test", "-role=sender", "-turn=172.31.1.2:3478", "-user=pingo", "-pass=pingosecret"]
+    networks:
+      net_a:
+        ipv4_address: 172.31.1.10
+    volumes:
+      - shared_exchange:/tmp
+    depends_on:
+      - pingo-server
+      - receiver
+
+volumes:
+  shared_exchange:
+
+networks:
+  net_a:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.1.0/24
+  net_b:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.2.0/24
