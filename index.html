@@ -547,18 +547,18 @@
                 </div>
             </div>
 
-            <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; align-items: center;">
-                <button class="btn btn-primary btn-xs" id="server-config-scan-qr-btn" style="display: flex; align-items: center; gap: 5px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none;">
-                    <i class="fas fa-camera"></i> 📷 Escanear QR con Cámara
+            <div class="server-config-actions-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap: 8px; margin-top: 4px;">
+                <button type="button" class="btn btn-primary btn-sm" id="server-config-scan-qr-btn" style="padding: 8px 6px; font-size: 0.78rem; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; white-space: nowrap; width: 100%; display: flex; align-items: center; justify-content: center; gap: 5px;" title="Escanear QR con cámara">
+                    <i class="fas fa-camera"></i> Escanear QR
                 </button>
-                <button class="btn btn-outline btn-xs" id="server-config-import-btn" style="display: flex; align-items: center; gap: 5px;">
-                    <i class="fas fa-file-import"></i> Pegar JSON / Link
+                <button type="button" class="btn btn-outline btn-sm" id="server-config-import-btn" style="padding: 8px 6px; font-size: 0.78rem; white-space: nowrap; width: 100%; display: flex; align-items: center; justify-content: center; gap: 5px;" title="Pegar JSON o enlace">
+                    <i class="fas fa-file-import"></i> Pegar JSON
                 </button>
-                <button class="btn btn-outline btn-xs" id="server-config-reset" style="display: flex; align-items: center; gap: 5px; opacity: 0.8;">
-                    <i class="fas fa-undo"></i> Valores por Defecto
+                <button type="button" class="btn btn-outline btn-sm" id="server-config-reset" style="padding: 8px 6px; font-size: 0.78rem; white-space: nowrap; width: 100%; opacity: 0.9; display: flex; align-items: center; justify-content: center; gap: 5px;" title="Restablecer valores por defecto">
+                    <i class="fas fa-undo"></i> Por Defecto
                 </button>
-                <button class="btn btn-outline btn-xs" id="server-config-test" style="display: flex; align-items: center; gap: 5px;">
-                    <i class="fas fa-bolt"></i> Probar Conectividad
+                <button type="button" class="btn btn-outline btn-sm" id="server-config-test" style="padding: 8px 6px; font-size: 0.78rem; white-space: nowrap; width: 100%; border-color: #38bdf8; color: #38bdf8; display: flex; align-items: center; justify-content: center; gap: 5px;" title="Probar conectividad">
+                    <i class="fas fa-bolt"></i> Probar Conexión
                 </button>
             </div>
 

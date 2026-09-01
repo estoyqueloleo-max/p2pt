@@ -1513,20 +1513,32 @@ async function testServerConnectivityUI() {
     const wsProto = secure ? 'wss' : 'ws';
 
     const cleanPath = path === '/' ? '' : (path.startsWith('/') ? path : '/' + path);
-    const testUrl = `${proto}://${host}:${port}${cleanPath}/id`;
+    const candidateEndpoints = [
+        `${proto}://${host}:${port}${cleanPath}/`,
+        `${proto}://${host}:${port}${cleanPath}/peerjs/id`,
+        `${proto}://${host}:${port}${cleanPath}/id`
+    ];
 
     try {
         let httpOk = false;
-        try {
-            const controller = new AbortController();
-            const tm = setTimeout(() => controller.abort(), 4000);
-            const resp = await fetch(testUrl, { signal: controller.signal });
-            clearTimeout(tm);
-            if (resp.ok) {
-                httpOk = true;
+        let lastStatus = null;
+        let lastRespText = '';
+
+        for (const url of candidateEndpoints) {
+            try {
+                const controller = new AbortController();
+                const tm = setTimeout(() => controller.abort(), 3500);
+                const resp = await fetch(url, { signal: controller.signal });
+                clearTimeout(tm);
+                lastStatus = resp.status;
+                if (resp.ok) {
+                    httpOk = true;
+                    try { lastRespText = await resp.text(); } catch(e){}
+                    break;
+                }
+            } catch (e) {
+                // Continue with next candidate endpoint
             }
-        } catch (e) {
-            console.log('[Test] HTTP probe note:', e);
         }
 
         // Also test WebSocket connection directly
@@ -1555,11 +1567,15 @@ async function testServerConnectivityUI() {
         if (httpOk || wsOk) {
             elements.serverTestStatus.style.background = 'rgba(34, 197, 94, 0.15)';
             elements.serverTestStatus.style.color = '#4ade80';
-            elements.serverTestStatus.innerHTML = `✅ <b>Conexión Exitosa:</b> Servidor alcanzable en <code>${host}:${port}</code>`;
+            elements.serverTestStatus.innerHTML = `✅ <b>Conexión Exitosa:</b> Servidor alcanzable en <code>${host}:${port}${cleanPath || '/'}</code> ${wsOk ? '(WebSocket OK)' : '(HTTP OK)'}`;
+        } else if (lastStatus === 404) {
+            elements.serverTestStatus.style.background = 'rgba(234, 179, 8, 0.15)';
+            elements.serverTestStatus.style.color = '#facc15';
+            elements.serverTestStatus.innerHTML = `⚠️ <b>Ruta no encontrada (404):</b> El host responde, pero la ruta <code>${cleanPath || '/'}</code> no existe. Si es un servidor tipo Render o Docker, comprueba si la <i>Ruta (Path)</i> configurada es <code>/myapp</code> o <code>/peerjs</code>.`;
         } else {
             elements.serverTestStatus.style.background = 'rgba(239, 68, 68, 0.15)';
             elements.serverTestStatus.style.color = '#f87171';
-            elements.serverTestStatus.innerHTML = `❌ <b>Fallo:</b> No se pudo conectar a <code>${testUrl}</code>. Verifica host, puerto y certificados SSL.`;
+            elements.serverTestStatus.innerHTML = `❌ <b>Fallo de conexión:</b> No se pudo alcanzar <code>${proto}://${host}:${port}${cleanPath || '/'}</code>. Verifica host, puerto y certificados SSL.`;
         }
     } catch (err) {
         elements.serverTestStatus.style.background = 'rgba(239, 68, 68, 0.15)';

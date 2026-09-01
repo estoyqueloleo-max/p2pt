@@ -914,10 +914,16 @@ input:-webkit-autofill:focus {
 }
 
 .btn-xs {
-    padding: 4px;
+    padding: 3px 8px;
+    font-size: 0.75rem;
+    min-height: 24px;
+    width: auto;
+}
+
+.icon-btn.btn-xs {
     width: 24px;
     height: 24px;
-    font-size: 0.7rem;
+    padding: 4px;
 }
 
 /* Route Specific Cards */
