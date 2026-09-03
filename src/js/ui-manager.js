@@ -107,10 +107,10 @@ export function renderAgenda() {
                 <button class="btn btn-outline btn-sm open-chat" data-id="${contact.derivedId}" title="Abrir Chat">
                     <i class="fas fa-comment"></i>
                 </button>
-                <button class="btn btn-outline btn-sm send-ping" data-id="${contact.derivedId}" title="Enviar Ping">
-                    <i class="fas fa-bell"></i>
-                </button>
                 ${isConnected ? `
+                <button class="btn btn-outline btn-sm start-call-contact" data-id="${contact.derivedId}" title="Iniciar Cámara / Videollamada" style="color: #818cf8; border-color: rgba(99, 102, 241, 0.4);">
+                    <i class="fas fa-video"></i>
+                </button>
                 <button class="btn btn-primary btn-sm share-quick-route" data-id="${contact.derivedId}" title="Enviar última ruta">
                     <i class="fas fa-folder-plus"></i>
                 </button>
@@ -161,6 +161,13 @@ export function renderAgenda() {
     });
     elements.agendaContainer.querySelectorAll('.open-chat').forEach(btn => {
         btn.addEventListener('click', () => openChatFor(btn.dataset.id));
+    });
+    elements.agendaContainer.querySelectorAll('.start-call-contact').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            openChatFor(btn.dataset.id);
+            const { startCamera } = await import('./media-manager.js');
+            startCamera();
+        });
     });
     elements.agendaContainer.querySelectorAll('.toggle-contact-geofence').forEach(btn => {
         btn.addEventListener('click', () => toggleContactGeofence(btn.dataset.index));
@@ -799,9 +806,21 @@ export function setupEventListeners() {
     });
 
     if (elements.chatBtn) elements.chatBtn.addEventListener('click', toggleChat);
-    if (elements.closeChatBtn) elements.closeChatBtn.addEventListener('click', toggleChat);
-    if (elements.exitChatBtn) elements.exitChatBtn.addEventListener('click', toggleChat);
-    elements.sendChatBtn.addEventListener('click', sendChatMessage);
+    if (elements.closeChatBtn) {
+        elements.closeChatBtn.addEventListener('click', () => {
+            if (state.uiMode === 'comm') {
+                setWorkspace('network');
+            } else {
+                toggleChat();
+            }
+        });
+    }
+    if (elements.exitChatBtn) {
+        elements.exitChatBtn.addEventListener('click', () => {
+            setWorkspace('network');
+        });
+    }
+    if (elements.sendChatBtn) elements.sendChatBtn.addEventListener('click', sendChatMessage);
 
     elements.manualLocationBtn.addEventListener('click', () => {
         state.manualLocationMode = !state.manualLocationMode;

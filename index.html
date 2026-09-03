@@ -232,15 +232,26 @@
 <!-- Local and remote videos will be injected here -->
 </div><div class="chat-panel" id="chat-panel" style="flex: 1;">
 <div class="chat-header">
+<div class="chat-header-info">
 <h3 id="chat-title"><i class="fas fa-comments"></i> Chat P2P</h3>
-<div style="display: flex; gap: 8px;">
-<button class="icon-btn" id="share-camera-btn" title="Compartir Cámara"><i class="fas fa-video"></i></button>
-<button class="icon-btn" id="share-screen-btn" title="Compartir Pantalla"><i class="fas fa-desktop"></i></button>
-<button class="icon-btn" id="close-chat-btn"><i class="fas fa-times"></i></button>
+</div>
+<div class="chat-header-actions">
+<button class="btn-action-call" id="share-camera-btn" title="Compartir Cámara"><i class="fas fa-video"></i> <span>Cámara</span></button>
+<button class="btn-action-call" id="share-screen-btn" title="Compartir Pantalla"><i class="fas fa-desktop"></i> <span>Pantalla</span></button>
+<button class="icon-btn" id="close-chat-btn" title="Cerrar Chat"><i class="fas fa-times"></i></button>
 </div>
 </div>
 <div class="chat-messages" id="chat-messages">
 <p class="chat-hint">Conecta con alguien para empezar a chatear...</p>
+</div>
+<div class="chat-input-bar integrated-chat-bar">
+<button class="icon-btn" id="share-active-route-btn" style="color: var(--primary); padding: 0 10px;" title="Compartir última ruta">
+<i class="fas fa-folder-plus"></i>
+</button>
+<input autocomplete="off" id="chat-input" placeholder="Escribe un mensaje..." type="text"/>
+<button class="btn-send" id="send-chat-btn">
+<i class="fas fa-paper-plane"></i>
+</button>
 </div>
 </div><div id="global-search-section">
 <div class="divider"><span>BÚSQUEDA HÍBRIDA P2P</span></div>
@@ -376,17 +387,11 @@
 </div>
 <!-- Modo Chat (Activo) -->
 <div class="footer-content chat-active-footer" id="footer-chat-mode" style="display: none;">
-<button class="icon-btn" id="exit-chat-btn" title="Cerrar Chat">
-<i class="fas fa-chevron-left"></i>
+<button class="icon-btn" id="exit-chat-btn" title="Cerrar Chat" style="display: flex; align-items: center; gap: 6px;">
+<i class="fas fa-chevron-left"></i> Volver a la Red
 </button>
-<div class="chat-input-bar">
-<button class="icon-btn" id="share-active-route-btn" style="color: var(--primary); padding: 0 10px;" title="Compartir última ruta">
-<i class="fas fa-folder-plus"></i>
-</button>
-<input autocomplete="off" id="chat-input" placeholder="Escribe un mensaje..." type="text"/>
-<button class="btn-send" id="send-chat-btn">
-<i class="fas fa-paper-plane"></i>
-</button>
+<div style="flex: 1; text-align: right; color: var(--text-dim); font-size: 0.78rem;">
+<i class="fas fa-shield-alt" style="color: var(--primary);"></i> P2P Cifrado E2E
 </div>
 </div>
 </footer>
