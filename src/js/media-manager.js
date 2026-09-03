@@ -6,6 +6,28 @@ import { state, elements } from './state.js';
 import { updateLocationStatus } from './utils.js';
 import { getConnectionStats } from './peer-manager.js';
 
+export async function startAudioCall() {
+    if (!state.activeChatPeerId) {
+        alert('Debes abrir un chat con un pingo para iniciar la llamada de voz.');
+        return;
+    }
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            }, 
+            video: false 
+        });
+        handleLocalStream(stream, 'audio');
+    } catch (err) {
+        console.error('[Media] Error accessing microphone:', err);
+        updateLocationStatus('Error al acceder al micrófono', 'fa-microphone-slash');
+        alert('No se pudo acceder al micrófono. Revisa los permisos.');
+    }
+}
+
 export async function startCamera() {
     if (!state.activeChatPeerId) {
         alert('Debes abrir un chat con un pingo para iniciar la cámara.');
@@ -104,15 +126,28 @@ function handleLocalStream(stream, type) {
     state.localStream = stream;
     if (state.streamTypes) state.streamTypes[state.myPeerId] = type;
     
-    // Add local video to UI
-    addVideoElement('local-video', stream, true, `Mi ${type === 'camera' ? 'Cámara' : 'Pantalla'}`, type);
+    // Add local video/audio to UI
+    const defaultLabel = type === 'audio' ? 'Mi Micrófono' : `Mi ${type === 'camera' ? 'Cámara' : 'Pantalla'}`;
+    addVideoElement('local-video', stream, true, defaultLabel, type);
     
-    // If user stops sharing from browser UI (especially for screen share)
-    stream.getVideoTracks()[0].onended = () => {
-        stopLocalStream();
-    };
+    // If user stops sharing from browser UI
+    const videoTracks = stream.getVideoTracks();
+    if (videoTracks.length > 0) {
+        videoTracks[0].onended = () => {
+            stopLocalStream();
+        };
+    } else {
+        const audioTracks = stream.getAudioTracks();
+        if (audioTracks.length > 0) {
+            audioTracks[0].onended = () => {
+                stopLocalStream();
+            };
+        }
+    }
 
-    updateLocationStatus(`Transmitiendo ${type === 'camera' ? 'Cámara' : 'Pantalla'}`, type === 'camera' ? 'fa-video' : 'fa-desktop');
+    const iconType = type === 'audio' ? 'fa-microphone' : (type === 'camera' ? 'fa-video' : 'fa-desktop');
+    const labelStatus = type === 'audio' ? 'Llamada de Voz (Audio)' : (type === 'camera' ? 'Cámara' : 'Pantalla');
+    updateLocationStatus(`Transmitiendo ${labelStatus}`, iconType);
     
     // Notify peers that a stream is available (origin: me, relayedBy: me)
     broadcastStreamStatus('stream-available', state.myPeerId, state.myPeerId, type);
@@ -178,6 +213,18 @@ function addVideoElement(id, stream, isLocal = false, labelText = '', streamType
         
         if (streamType === 'screen') {
             container.classList.add('screen-share-view');
+        } else if (streamType === 'audio') {
+            container.classList.add('audio-call-view');
+            const audioCard = document.createElement('div');
+            audioCard.className = 'audio-call-card';
+            audioCard.innerHTML = `
+                <div class="audio-pulse-avatar">
+                    <i class="fas fa-microphone"></i>
+                </div>
+                <div style="font-weight:600; font-size:0.95rem; color:#fff; margin-bottom:4px;">${labelText || 'Llamada de Voz P2P'}</div>
+                <div style="font-size:0.75rem; color:#94a3b8;"><i class="fas fa-signal"></i> Códec Opus (~20 kbps)</div>
+            `;
+            container.appendChild(audioCard);
         } else {
             container.classList.add('camera-view');
         }
@@ -210,10 +257,14 @@ function addVideoElement(id, stream, isLocal = false, labelText = '', streamType
             video.muted = true; // Mute local video to prevent echo
         }
         video.style.width = '100%';
-        video.style.display = 'block';
+        if (streamType === 'audio') {
+            video.style.display = 'none';
+        } else {
+            video.style.display = 'block';
+        }
         
         container.appendChild(video);
-        setupVideoControls(container, video, isLocal, streamType);
+        setupVideoControls(container, video, isLocal, streamType, id);
         
         if (streamType === 'screen') {
             setupTouchZoomAndPan(container, video);
@@ -231,9 +282,73 @@ function addVideoElement(id, stream, isLocal = false, labelText = '', streamType
     }
 }
 
-function setupVideoControls(container, video, isLocal, streamType) {
+function setupVideoControls(container, video, isLocal, streamType, elementId = '') {
     const controls = document.createElement('div');
     controls.className = 'video-floating-controls';
+
+    // Live Connection Type Badge
+    const connBadge = document.createElement('div');
+    connBadge.className = 'video-conn-badge';
+    container.appendChild(connBadge);
+
+    async function updateConnBadge() {
+        if (!document.getElementById(container.id)) return;
+        if (isLocal) {
+            connBadge.innerHTML = '<span class="badge-conn-tag local"><i class="fas fa-circle" style="font-size:0.5rem; color:#4ade80;"></i> Local</span>';
+            return;
+        }
+        const targetId = elementId.replace('remote-video-', '');
+        try {
+            const stats = await getConnectionStats(targetId);
+            if (!stats) {
+                connBadge.innerHTML = '<span class="badge-conn-tag direct"><i class="fas fa-bolt"></i> P2P</span>';
+                return;
+            }
+            const isRelay = stats.type === 'relay';
+            const isIpv6 = stats.remoteAddress && stats.remoteAddress.includes(':');
+            const rtt = stats.currentRoundTripTime ? ` ${Math.round(stats.currentRoundTripTime * 1000)}ms` : '';
+            
+            if (isRelay) {
+                connBadge.innerHTML = `<span class="badge-conn-tag relay" title="Retransmitido por servidor TURN"><i class="fas fa-tower-broadcast"></i> Relay TURN${rtt}</span>`;
+            } else {
+                const addrLabel = isIpv6 ? 'IPv6' : 'Directo';
+                connBadge.innerHTML = `<span class="badge-conn-tag direct" title="Conexión directa P2P (0 consumo de relé)"><i class="fas fa-bolt"></i> P2P ${addrLabel}${rtt}</span>`;
+            }
+        } catch (e) {
+            connBadge.innerHTML = '<span class="badge-conn-tag direct"><i class="fas fa-bolt"></i> P2P</span>';
+        }
+    }
+    updateConnBadge();
+    const badgeTimer = setInterval(updateConnBadge, 4000);
+
+    // Screen Share FPS / Quality Mode Toggle (reading 10fps vs fluid 30fps)
+    if (isLocal && streamType === 'screen') {
+        const fpsBtn = document.createElement('button');
+        fpsBtn.className = 'video-ctrl-btn';
+        let isReadingMode = false;
+        fpsBtn.innerHTML = '<span style="font-size:0.7rem; font-weight:700;">30fps</span>';
+        fpsBtn.title = 'Alternar calidad: 30fps (Fluido) vs 10fps (Modo lectura/ahorro 5G)';
+        fpsBtn.onclick = async (e) => {
+            e.stopPropagation();
+            const track = state.localStream ? state.localStream.getVideoTracks()[0] : null;
+            if (track) {
+                isReadingMode = !isReadingMode;
+                try {
+                    await track.applyConstraints({
+                        frameRate: isReadingMode ? { ideal: 10, max: 10 } : { ideal: 30, max: 30 }
+                    });
+                    fpsBtn.innerHTML = isReadingMode 
+                        ? '<span style="font-size:0.7rem; font-weight:700; color:#4ade80;">10fps</span>' 
+                        : '<span style="font-size:0.7rem; font-weight:700;">30fps</span>';
+                    fpsBtn.title = isReadingMode ? 'Modo lectura activo (10 fps, ahorro 5G)' : 'Modo fluido (30 fps)';
+                    updateLocationStatus(isReadingMode ? 'Pantalla a 10 FPS (Modo lectura)' : 'Pantalla a 30 FPS (Fluido)', 'fa-desktop');
+                } catch (err) {
+                    console.warn('[Media] applyConstraints error:', err);
+                }
+            }
+        };
+        controls.appendChild(fpsBtn);
+    }
 
     // Fullscreen / Landscape toggle
     const fsBtn = document.createElement('button');

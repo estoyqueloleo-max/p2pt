@@ -22,7 +22,7 @@ import { shareRouteP2P } from './sync-manager.js';
 import { vectorManager } from './vector-manager.js';
 import { marked } from 'marked';
 import { createGitgraph, templateExtend, TemplateName } from '@gitgraph/js';
-import { startCamera, startScreenShare } from './media-manager.js';
+import { startCamera, startScreenShare, startAudioCall } from './media-manager.js';
 import { startTour } from './tour-manager.js';
 import README from '../../README.md?raw';
 
@@ -679,6 +679,12 @@ export function setupEventListeners() {
             window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(fullText)}`, '_blank');
         }
     });
+
+    if (elements.shareAudioBtn) {
+        elements.shareAudioBtn.addEventListener('click', () => {
+            startAudioCall();
+        });
+    }
 
     if (elements.shareCameraBtn) {
         elements.shareCameraBtn.addEventListener('click', () => {

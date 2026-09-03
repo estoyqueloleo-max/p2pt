@@ -82,6 +82,7 @@ export const elements = {
     get statusIndicator() { return getEl('status-indicator'); },
     get locationStatus() { return getEl('location-status'); },
     get shareBtn() { return getEl('share-btn'); },
+    get shareAudioBtn() { return getEl('share-audio-btn'); },
     get shareCameraBtn() { return getEl('share-camera-btn'); },
     get shareScreenBtn() { return getEl('share-screen-btn'); },
     get videoContainer() { return getEl('video-container'); },
