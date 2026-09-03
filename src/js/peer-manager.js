@@ -237,21 +237,73 @@ export function ensureSignalingConnection() {
  * Re-establishes data channels with peers that were previously connected
  * or are in the agenda and should be reachable.
  */
+const reconnectTimers = {};
+const reconnectAttempts = {};
+
+export function cancelReconnect(peerId) {
+    const id = String(peerId);
+    if (reconnectTimers[id]) {
+        clearTimeout(reconnectTimers[id]);
+        delete reconnectTimers[id];
+    }
+    delete reconnectAttempts[id];
+}
+
+export function scheduleReconnect(peerId) {
+    const id = String(peerId);
+    if (state.connections[id] && state.connections[id].open) {
+        cancelReconnect(id);
+        return;
+    }
+    if (reconnectTimers[id]) {
+        return; // Already scheduled
+    }
+
+    const attempts = (reconnectAttempts[id] || 0) + 1;
+    reconnectAttempts[id] = attempts;
+
+    // Exponential backoff: 2s, 4s, 8s, 16s, max 30s
+    const delay = Math.min(Math.pow(2, attempts) * 1000, 30000);
+    console.log(`[Peer] Auto-reconexión programada a ${id} (#${attempts}) en ${delay / 1000}s`);
+
+    reconnectTimers[id] = setTimeout(async () => {
+        delete reconnectTimers[id];
+        if (state.connections[id] && state.connections[id].open) {
+            cancelReconnect(id);
+            return;
+        }
+        console.log(`[Peer] 🔄 Reintentando conectar automáticamente con ${id}...`);
+        try {
+            await connectToPeer(id);
+            cancelReconnect(id);
+            console.log(`[Peer] ✅ Auto-reconexión exitosa con ${id}.`);
+        } catch (err) {
+            console.warn(`[Peer] Reintento fallido con ${id}:`, err.message);
+            if (attempts < 15) {
+                scheduleReconnect(id);
+            }
+        }
+    }, delay);
+}
+
 export async function restoreActiveConnections() {
     console.log('[Peer] Restoring active connections...');
     
     // 1. Identify which peers we should try to connect to.
-    // We'll try to reconnect to everyone in the agenda who isn't currently connected.
-    // In a more complex app, we might track who was 'last seen'.
     for (const contact of state.agenda) {
         const id = String(contact.derivedId);
         if (!state.connections[id] || !state.connections[id].open) {
-            console.log(`[Peer] Auto-reconnecting to ${contact.alias} (${id})...`);
-            connectToPeer(id).catch(err => {
-                console.warn(`[Peer] Failed auto-reconnect to ${id}:`, err.message);
-            });
+            scheduleReconnect(id);
         }
     }
+}
+
+if (typeof window !== 'undefined') {
+    window.addEventListener('online', () => {
+        console.log('[Network] Conexión a Internet recuperada (online). Restableciendo señalización y conexiones...');
+        ensureSignalingConnection();
+        setTimeout(() => restoreActiveConnections(), 1000);
+    });
 }
 
 export function handleIncomingConnection(conn) {
@@ -361,6 +413,7 @@ export function handlePeerData(peerId, data) {
         updateLocationStatus(`Alerta de Pingo ${peerId}: ${data.message}`, 'fa-bell');
         console.warn(`Alert from ${peerId}: ${data.message}`);
     } else if (data.type === 'stop') {
+        cancelReconnect(peerId);
         alert('Un pingo ha dejado de compartir su ubicación.');
         removePeerMarker(peerId);
         delete state.connections[peerId];
@@ -593,6 +646,9 @@ export async function connectToPeer(targetId) {
                 console.log(`[ICE] Outgoing to ${targetId} State:`, pc.iceConnectionState);
                 if (pc.iceConnectionState === 'failed') {
                     updateLocationStatus(`Conexión directa fallida con ${alias}`, 'fa-triangle-exclamation');
+                    if (state.agenda.some(c => String(c.derivedId) === targetIdStr)) {
+                        scheduleReconnect(targetIdStr);
+                    }
                 }
             });
         }
@@ -627,6 +683,9 @@ export async function connectToPeer(targetId) {
             ui.renderAgenda();
             ui.updateDisconnectButton();
         });
+        if (state.agenda.some(c => String(c.derivedId) === targetIdStr)) {
+            scheduleReconnect(targetIdStr);
+        }
     });
 
     conn.on('error', async (err) => {
@@ -651,22 +710,25 @@ export async function connectToPeer(targetId) {
 }
 
 export function disconnectFromPeer(targetId) {
-    const conn = state.connections[targetId];
+    const id = String(targetId);
+    cancelReconnect(id);
+    const conn = state.connections[id];
     if (conn) {
         conn.send({ type: 'stop' });
         setTimeout(() => conn.close(), 500);
-        delete state.connections[targetId];
-        removePeerMarker(targetId);
+        delete state.connections[id];
+        removePeerMarker(id);
         getUI().then(ui => {
             ui.renderAgenda();
             ui.updateDisconnectButton();
         });
-        updateLocationStatus(`Pingo desconectado: ${targetId}`, 'fa-circle-stop');
+        updateLocationStatus(`Pingo desconectado: ${id}`, 'fa-circle-stop');
     }
 }
 
 export function stopAllConnections() {
     console.log('[Peer] Stopping all active connections (Passive Mode)...');
+    Object.keys(reconnectTimers).forEach(id => cancelReconnect(id));
     Object.keys(state.connections).forEach(id => {
         disconnectFromPeer(id);
     });
