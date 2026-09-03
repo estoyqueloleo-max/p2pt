@@ -816,9 +816,25 @@ export function setupEventListeners() {
         }
     });
 
-    elements.chatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendChatMessage();
-    });
+    if (elements.chatInput) {
+        elements.chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendChatMessage();
+        });
+
+        elements.chatInput.addEventListener('focus', () => {
+            const comm = document.getElementById('workspace-comm');
+            if (comm && elements.videoContainer && elements.videoContainer.children.length > 0) {
+                comm.classList.add('keyboard-active');
+            }
+        });
+
+        elements.chatInput.addEventListener('blur', () => {
+            const comm = document.getElementById('workspace-comm');
+            if (comm) {
+                comm.classList.remove('keyboard-active');
+            }
+        });
+    }
 
     // --- MODO CORRESPONDENCIA / CARTOGRAFÍA ---
     if (elements.navNetworkBtn) elements.navNetworkBtn.addEventListener('click', () => setWorkspace('network'));

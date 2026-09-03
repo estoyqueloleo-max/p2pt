@@ -1490,6 +1490,114 @@ input:-webkit-autofill:focus {
     z-index: 1001;
 }
 
+/* Floating controls on video stream */
+.video-floating-controls {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 4px 8px;
+    border-radius: 20px;
+    z-index: 20;
+    pointer-events: auto;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.video-ctrl-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 0.15s, transform 0.1s;
+}
+
+.video-ctrl-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.08);
+}
+
+.video-ctrl-btn:active {
+    transform: scale(0.94);
+}
+
+.video-ctrl-btn.video-ctrl-danger {
+    background: var(--danger);
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+.video-ctrl-btn.video-ctrl-danger:hover {
+    background: #dc2626;
+}
+
+/* Zoom badge & reset indicator */
+.video-zoom-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(59, 130, 246, 0.85);
+    backdrop-filter: blur(8px);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 4px 10px;
+    border-radius: 14px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    animation: fadeIn 0.2s ease-out;
+}
+
+.video-zoom-badge:hover {
+    background: #2563eb;
+    transform: scale(1.05);
+}
+
+/* Picture-in-Picture CSS Floating Mode */
+.video-wrapper.pip-floating {
+    position: fixed !important;
+    bottom: 80px !important;
+    right: 16px !important;
+    width: 180px !important;
+    max-height: 120px !important;
+    z-index: 3000 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important;
+    border: 2px solid var(--primary) !important;
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Adaptive mobile layout when virtual keyboard opens */
+#workspace-comm.keyboard-active #video-container {
+    max-height: 80px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+#workspace-comm.keyboard-active .video-wrapper {
+    max-height: 75px;
+    width: 110px;
+}
+
+#workspace-comm.keyboard-active .chat-panel {
+    max-height: calc(100vh - 120px);
+}
 
 /* WORKSPACE LAYOUT & RESPONSIVE CONTAINERS */
 #main-content {
