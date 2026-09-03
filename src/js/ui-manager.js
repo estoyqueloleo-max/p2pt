@@ -1346,7 +1346,34 @@ export function setupEventListeners() {
         });
     }
 
-    
+    function applyParsedServerConfig(parsed, successMessage) {
+        if (!parsed) return;
+
+        if (parsed.signaling) {
+            if (parsed.signaling.host && elements.serverSignalingHost) elements.serverSignalingHost.value = parsed.signaling.host;
+            if (parsed.signaling.port && elements.serverSignalingPort) elements.serverSignalingPort.value = parsed.signaling.port;
+            if (parsed.signaling.path && elements.serverSignalingPath) elements.serverSignalingPath.value = parsed.signaling.path;
+            if (parsed.signaling.secure !== undefined && elements.serverSignalingSecure) elements.serverSignalingSecure.checked = parsed.signaling.secure;
+        }
+
+        if (parsed.turn) {
+            if (parsed.turn.urls && elements.serverTurnUrls) elements.serverTurnUrls.value = Array.isArray(parsed.turn.urls) ? parsed.turn.urls.join(', ') : parsed.turn.urls;
+            if (parsed.turn.username && elements.serverTurnUser) elements.serverTurnUser.value = parsed.turn.username;
+            if (parsed.turn.credential && elements.serverTurnPass) elements.serverTurnPass.value = parsed.turn.credential;
+        }
+
+        if (parsed.cloud && parsed.cloud.apiEndpoint && elements.serverCloudApi) {
+            elements.serverCloudApi.value = parsed.cloud.apiEndpoint;
+        }
+
+        saveServerConfigFromUI();
+
+        if (successMessage) {
+            updateLocationStatus(successMessage, 'fa-check');
+            alert(successMessage);
+        }
+    }
+
     // QR Camera Scanner & Topic Auto-Discovery Listeners
     const openQRScannerModal = () => {
         if (elements.qrCameraScannerModal) {
@@ -1459,25 +1486,8 @@ export function setupEventListeners() {
 
                 if (!parsed) throw new Error('No se pudo extraer la configuración');
 
-                if (parsed.signaling) {
-                    if (parsed.signaling.host && elements.serverSignalingHost) elements.serverSignalingHost.value = parsed.signaling.host;
-                    if (parsed.signaling.port && elements.serverSignalingPort) elements.serverSignalingPort.value = parsed.signaling.port;
-                    if (parsed.signaling.path && elements.serverSignalingPath) elements.serverSignalingPath.value = parsed.signaling.path;
-                    if (parsed.signaling.secure !== undefined && elements.serverSignalingSecure) elements.serverSignalingSecure.checked = parsed.signaling.secure;
-                }
-
-                if (parsed.turn) {
-                    if (parsed.turn.urls && elements.serverTurnUrls) elements.serverTurnUrls.value = Array.isArray(parsed.turn.urls) ? parsed.turn.urls.join(', ') : parsed.turn.urls;
-                    if (parsed.turn.username && elements.serverTurnUser) elements.serverTurnUser.value = parsed.turn.username;
-                    if (parsed.turn.credential && elements.serverTurnPass) elements.serverTurnPass.value = parsed.turn.credential;
-                }
-
-                if (parsed.cloud && parsed.cloud.apiEndpoint && elements.serverCloudApi) {
-                    elements.serverCloudApi.value = parsed.cloud.apiEndpoint;
-                }
-
+                applyParsedServerConfig(parsed, 'Configuración importada y aplicada ✅');
                 if (elements.serverConfigImportModal) elements.serverConfigImportModal.style.display = 'none';
-                updateLocationStatus('Configuración importada en formulario ✅', 'fa-check');
             } catch (err) {
                 alert(`Error al importar configuración: ${err.message}`);
             }
