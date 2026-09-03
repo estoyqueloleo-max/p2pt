@@ -26,9 +26,11 @@
 - [ ] **Manual de optimización de batería**: Documentación para Android.
 - [ ] **Alertas de Batería**: Enviar el nivel de batería restante junto con la ubicación.
 
-# 🌐 Infraestructura P2P Avanzada
-- [ ] **PeerJS en la Nube (Render.com)**: Explorar el despliegue de un servidor PeerJS propio en Go.
-- [ ] **Servidor TURN propio**: Desplegar la configuración COTURN en un VPS para máxima compatibilidad 5G.
+# 🌐 Infraestructura P2P Avanzada & Appliance de Red
+- [ ] **Túnel Inverso Ligero para Señalización + SSL**: Integrar cliente de túnel saliente (Cloudflare Tunnel / BoringProxy) en `p2pt-server` para resolver CGNAT y certificados HTTPS/WSS sin abrir puertos (ver detalle en [P2P.md Sección 12](file:///home/jose/workspace/pingo/P2P.md#12-análisis-de-escenarios-críticos-cgnat-estricto-tráfico-de-medios-y-próximos-pasos-de-red)).
+- [ ] **Soporte Nativo IPv6 y DuckDNS (AAAA)**: Registrar IPv6 global de la RPi Zero y añadir validación de reglas de firewall *pinhole* en el dashboard.
+- [ ] **Clasificación RFC de Tipo de NAT en Go**: Implementar escáner en `p2pt-server` para detectar si la conexión es *Symmetric NAT* (bloqueo P2P) o *Full/Restricted Cone*.
+- [ ] **Estrategia Híbrida de Relé TURN**: P2P directo por STUN por defecto + red de relé TURN de respaldo para el ~15% de casos 5G/CGNAT simétrico.
 
 # ☁️ Copia de Seguridad & Cloud
 - [ ] **Exportación KML/GPX**: Convertir rutas de Git a formatos estándar.
