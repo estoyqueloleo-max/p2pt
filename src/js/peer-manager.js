@@ -384,7 +384,7 @@ export function handlePeerData(peerId, data) {
         getUI().then(ui => ui.appendMessage('received', data.text, displayName));
         updateLocationStatus(`Mensaje de ${displayName}`, 'fa-comment-dots');
 
-        if (elements.chatPanel && elements.chatPanel.classList.contains('collapsed')) {
+        if (state.uiMode !== 'comm') {
             if (elements.chatBadge) elements.chatBadge.style.display = 'block';
         }
 
@@ -508,6 +508,9 @@ export function handlePeerData(peerId, data) {
 
         updateLocationStatus(`Archivo recibido de ${alias}: ${fileName}`, 'fa-file-arrow-down');
         getUI().then(ui => ui.appendMessage('received', `📁 Archivo recibido: ${fileName}`, alias));
+        if (state.uiMode !== 'comm') {
+            if (elements.chatBadge) elements.chatBadge.style.display = 'block';
+        }
 
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             setTimeout(() => {

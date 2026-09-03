@@ -223,6 +223,7 @@ export function setWorkspace(mode) {
         renderRoutes();
         updateLocationStatus('Workspace', 'fa-laptop-code');
     } else if (mode === 'comm') {
+        if (elements.chatBadge) elements.chatBadge.style.display = 'none';
         updateLocationStatus('Comunicación y Búsqueda', 'fa-comments');
     } else if (mode === 'location') {
         updateLocationStatus('Localización', 'fa-map-marked-alt');

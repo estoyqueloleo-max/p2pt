@@ -878,14 +878,16 @@ input:-webkit-autofill:focus {
 
 .badge {
     position: absolute;
-    top: 5px;
-    right: 5px;
-    width: 12px;
-    height: 12px;
+    top: 2px;
+    right: 2px;
+    width: 10px;
+    height: 10px;
     background: var(--danger);
     border-radius: 50%;
     border: 2px solid var(--bg-dark);
     animation: pulse 1.5s infinite;
+    z-index: 15;
+    pointer-events: none;
 }
 
 @keyframes pulse {
