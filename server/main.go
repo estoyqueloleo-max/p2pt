@@ -27,6 +27,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pion/logging"
 	"github.com/pion/turn/v4"
+	"github.com/pion/webrtc/v4"
 	qrcode "github.com/skip2/go-qrcode"
 )
 
@@ -51,6 +52,8 @@ type Config struct {
 	TLSCertFile    string
 	TLSKeyFile     string
 	AppPublicURL   string
+	AdminPassword  string
+	AllowWANDash   bool
 	mu             sync.RWMutex
 }
 
@@ -261,6 +264,15 @@ type ClientConfigJSON struct {
 		Username   string   `json:"username"`
 		Credential string   `json:"credential"`
 	} `json:"turn"`
+	Broadcast struct {
+		Enabled bool   `json:"enabled"`
+		WHIPURL string `json:"whip_url"`
+		WHEPURL string `json:"whep_url"`
+	} `json:"broadcast"`
+	Capabilities struct {
+		BroadcastRelay      bool `json:"broadcast_relay"`
+		TurnAllowedForMedia bool `json:"turn_allowed_for_media"`
+	} `json:"capabilities"`
 }
 
 func getLocalOutboundIP() string {
@@ -305,6 +317,16 @@ func generatePairConfig(cfg *Config) (ClientConfigJSON, string, string) {
 	}
 	clientConfig.Turn.Username = cfg.Username
 	clientConfig.Turn.Credential = cfg.Password
+
+	proto := "http"
+	if cfg.EnableTLS {
+		proto = "https"
+	}
+	clientConfig.Broadcast.Enabled = true
+	clientConfig.Broadcast.WHIPURL = fmt.Sprintf("%s://%s:%d/api/whip", proto, publicHost, cfg.HTTPPort)
+	clientConfig.Broadcast.WHEPURL = fmt.Sprintf("%s://%s:%d/api/whep", proto, publicHost, cfg.HTTPPort)
+	clientConfig.Capabilities.BroadcastRelay = true
+	clientConfig.Capabilities.TurnAllowedForMedia = true
 
 	configJSONBytes, _ := json.MarshalIndent(clientConfig, "", "  ")
 	configBase64 := base64.URLEncoding.EncodeToString([]byte(configJSONBytes))
@@ -359,6 +381,9 @@ func scanWiFiNetworks() []ScannedNetwork {
 
 func main() {
 	serverStartTime := time.Now()
+	// Pre-load persistent environment configuration if available
+	LoadEnvFile(GetEnvConfigPath())
+
 	httpPort := flag.Int("port", 9000, "HTTP and WebSocket signaling port")
 	turnPort := flag.Int("turn-port", 3478, "STUN/TURN UDP listening port")
 	publicIPFlag := flag.String("public-ip", "", "Public IP or domain of this server")
@@ -381,6 +406,8 @@ func main() {
 	enableMDNS := flag.Bool("mdns", true, "Enable local mDNS / Zeroconf advertising")
 	noMDNS := flag.Bool("no-mdns", false, "Disable local mDNS advertising")
 	enableAutoUpdate := flag.Bool("auto-update", false, "Enable background auto-updates from GitHub Releases")
+	adminPassFlag := flag.String("admin-pass", "", "Admin password for Dashboard & Management APIs")
+	allowWANDashFlag := flag.Bool("allow-wan-dashboard", true, "Allow Dashboard access from WAN/Internet")
 
 	flag.Parse()
 
@@ -422,6 +449,12 @@ func main() {
 	if os.Getenv("AUTO_UPDATE") == "true" || os.Getenv("AUTO_UPDATE") == "1" {
 		*enableAutoUpdate = true
 	}
+	if envAdminPass := os.Getenv("ADMIN_PASSWORD"); envAdminPass != "" {
+		*adminPassFlag = envAdminPass
+	}
+	if envWANDash := os.Getenv("ALLOW_WAN_DASHBOARD"); envWANDash == "false" || envWANDash == "0" {
+		*allowWANDashFlag = false
+	}
 
 	cfg := &Config{
 		HTTPPort:         *httpPort,
@@ -443,12 +476,29 @@ func main() {
 		TLSCertFile:      *tlsCert,
 		TLSKeyFile:       *tlsKey,
 		AppPublicURL:     *appURL,
+		AdminPassword:    *adminPassFlag,
+		AllowWANDash:     *allowWANDashFlag,
 	}
 
 	// Interactive Wizard if requested
 	if *runWizard {
 		RunCLIWizard(cfg)
 	}
+
+	// Ensure AdminPassword is set; generate a secure random one if missing
+	if cfg.AdminPassword == "" {
+		const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+		rnd := make([]byte, 12)
+		for i := range rnd {
+			rnd[i] = chars[rand.Intn(len(chars))]
+		}
+		cfg.AdminPassword = string(rnd)
+		_ = SaveConfigToEnv(cfg)
+		log.Printf("[Security] 🔑 Contraseña de administrador generada automáticamente: %s", cfg.AdminPassword)
+		log.Printf("[Security] ℹ️ Guardada en %s. Puedes cambiarla cuando desees.", GetEnvConfigPath())
+	}
+
+	authMgr := NewAuthManager(cfg.AdminPassword, cfg.AllowWANDash)
 
 	go SyncSystemClock()
 	localIP := getLocalOutboundIP()
@@ -576,6 +626,7 @@ func main() {
 
 	// PeerJS endpoints
 	mux.HandleFunc("/peerjs", handleWS)
+	mux.HandleFunc("/peerjs/", handleWS)
 	mux.HandleFunc("/peerjs/peerjs", handleWS)
 	mux.HandleFunc("/peerjs/id", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -588,10 +639,14 @@ func main() {
 		fmt.Fprintf(w, "%08d", rand.Intn(100000000))
 	})
 
+	// Auth endpoints
+	mux.HandleFunc("/api/auth/login", authMgr.HandleLogin)
+	mux.HandleFunc("/api/auth/logout", authMgr.HandleLogout)
+	mux.HandleFunc("/api/auth/check", authMgr.HandleAuthCheck)
+
 	// API Endpoints
-	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/status", authMgr.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		clientCfg, _, pairURL := generatePairConfig(cfg)
 
@@ -608,11 +663,10 @@ func main() {
 			"duckdns":       duckMgr.GetStatus(),
 		}
 		_ = json.NewEncoder(w).Encode(respData)
-	})
+	}))
 
-	mux.HandleFunc("/api/duckdns", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/duckdns", authMgr.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -665,11 +719,10 @@ func main() {
 			"public_host": cfg.GetPublicIP(),
 			"pair_url":    pairURL,
 		})
-	})
+	}))
 
-	mux.HandleFunc("/api/upnp/scan", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/upnp/scan", authMgr.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -684,18 +737,16 @@ func main() {
 			"success": report.Active,
 			"upnp":    report,
 		})
-	})
+	}))
 
-	mux.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/config", authMgr.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 		clientConfig, _, _ := generatePairConfig(cfg)
 		_ = json.NewEncoder(w).Encode(clientConfig)
-	})
+	}))
 
-	mux.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/status", authMgr.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 		upnpReport := upnpMgr.GetReport()
 		duckStatus := duckMgr.GetStatus()
 		status := map[string]interface{}{
@@ -715,13 +766,16 @@ func main() {
 			"tracker_swarms":  tracker.SwarmCount(),
 		}
 		_ = json.NewEncoder(w).Encode(status)
-	})
+	}))
+
+	// Public Healthz endpoint
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		fmt.Fprintf(w, `{"status":"ok","clients":%d,"turn":"active"}`+"\n", sigServer.ClientCount())
 	})
 
+	// Public TURN Credentials endpoint for WebRTC clients
 	mux.HandleFunc("/turn-credentials", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -739,6 +793,7 @@ func main() {
 		turnURI := fmt.Sprintf("turn:%s:%d?transport=udp", cfg.GetPublicIP(), cfg.TURNPort)
 		stunURI := fmt.Sprintf("stun:%s:%d", cfg.GetPublicIP(), cfg.TURNPort)
 
+		clientCfg, _, _ := generatePairConfig(cfg)
 		resp := map[string]interface{}{
 			"iceServers": []map[string]interface{}{
 				{
@@ -747,17 +802,46 @@ func main() {
 					"credential": turnPass,
 				},
 			},
-			"ttl": ttl,
+			"ttl":          ttl,
+			"capabilities": clientCfg.Capabilities,
+			"broadcast":    clientCfg.Broadcast,
 		}
 		_ = json.NewEncoder(w).Encode(resp)
 	})
+
+	broadcastMgr := NewBroadcastManager(2, []webrtc.ICEServer{
+		{
+			URLs: []string{fmt.Sprintf("stun:%s:%d", cfg.GetPublicIP(), cfg.TURNPort)},
+		},
+	})
+	mux.HandleFunc("/api/whip/", broadcastMgr.HandleWHIP)
+	mux.HandleFunc("/api/whep/", broadcastMgr.HandleWHEP)
+	mux.HandleFunc("/api/info", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "*")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		clientCfg, _, pairURL := generatePairConfig(cfg)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":       "ok",
+			"version":      clientCfg.Version,
+			"signaling":    clientCfg.Signaling,
+			"capabilities": clientCfg.Capabilities,
+			"broadcast":    clientCfg.Broadcast,
+			"pair_url":     pairURL,
+		})
+	})
+
 	mux.HandleFunc("/api/turn", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/turn-credentials", http.StatusTemporaryRedirect)
 	})
 
-	mux.HandleFunc("/api/config", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/config", authMgr.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 		if r.Method != "POST" {
 			http.Error(w, `{"error":"POST required"}`, http.StatusMethodNotAllowed)
 			return
@@ -790,10 +874,10 @@ func main() {
 			"success": true,
 			"config":  cfg,
 		})
-	})
-	mux.HandleFunc("/api/turn/sessions", func(w http.ResponseWriter, r *http.Request) {
+	}))
+
+	mux.HandleFunc("/api/turn/sessions", authMgr.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 		sessions, activeCount, blockedCount := turnMonitor.GetActiveSessions()
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"active_sessions_count": activeCount,
@@ -801,11 +885,10 @@ func main() {
 			"sessions":              sessions,
 			"blocked_ips":           turnMonitor.GetBlockedIPs(),
 		})
-	})
+	}))
 
-	mux.HandleFunc("/api/turn/block", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/turn/block", authMgr.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 		if r.Method != "POST" {
 			http.Error(w, `{"error":"POST required"}`, http.StatusMethodNotAllowed)
 			return
@@ -843,11 +926,10 @@ func main() {
 			"action":  payload.Action,
 			"blocked": turnMonitor.GetBlockedIPs(),
 		})
-	})
+	}))
 
-	mux.HandleFunc("/api/turn/revoke", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/turn/revoke", authMgr.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 		if r.Method != "POST" {
 			http.Error(w, `{"error":"POST required"}`, http.StatusMethodNotAllowed)
 			return
@@ -875,25 +957,20 @@ func main() {
 			"success": true,
 			"revoked": payload.SessionKey,
 		})
-	})
+	}))
 
-	
-	
-
-
-	mux.HandleFunc("/api/wifi/scan", func(w http.ResponseWriter, r *http.Request) {
+	// Hardware and Network Endpoints: Restricted to Local Network / Hotspot and require Admin Auth
+	mux.HandleFunc("/api/wifi/scan", authMgr.RequireAuth(authMgr.RequireLocalNetwork(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 		networks := scanWiFiNetworks()
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":  true,
 			"networks": networks,
 		})
-	})
+	})))
 
-	mux.HandleFunc("/api/wifi/configure", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/wifi/configure", authMgr.RequireAuth(authMgr.RequireLocalNetwork(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -981,31 +1058,44 @@ func main() {
 				}
 			}()
 		}
-	})
+	})))
 
 	// Dashboard & Fallback
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "*")
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
 		if strings.HasSuffix(path, "/peerjs") {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "*")
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
 			handleWS(w, r)
 			return
 		}
 		if strings.HasSuffix(path, "/id") {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.Header().Set("Content-Type", "text/plain")
 			fmt.Fprintf(w, "%08d", rand.Intn(100000000))
 			return
 		}
 
 		if path == "" || path == "/" {
+			if !authMgr.IsAuthenticated(r) {
+				if !cfg.AllowWANDash && !authMgr.IsPrivateOrLocalRequest(r) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusNotFound)
+					_ = json.NewEncoder(w).Encode(map[string]string{
+						"status":  "ok",
+						"service": "pingo-signaling",
+					})
+					return
+				}
+				authMgr.RenderLoginPage(w, r, "")
+				return
+			}
 			renderDashboard(w, r, cfg, sigServer, upnpMgr, duckMgr, tracker, turnMonitor)
 			return
 		}
@@ -1036,14 +1126,16 @@ func main() {
 	}
 
 	// 7. Initialize TLS Certificates (Let's Encrypt via DuckDNS DNS-01 or Local/Self-Signed fallback)
-	cert, errTLS := EnsureTLSCertificates(cfg)
-	if errTLS == nil {
-		cfg.EnableTLS = true
-		tlsMu.Lock()
-		currentTLSCert = cert
-		tlsMu.Unlock()
-	} else {
-		log.Printf("[TLS] Advertencia: no se pudo iniciar TLS automático: %v", errTLS)
+	if cfg.EnableTLS {
+		cert, errTLS := EnsureTLSCertificates(cfg)
+		if errTLS == nil {
+			tlsMu.Lock()
+			currentTLSCert = cert
+			tlsMu.Unlock()
+		} else {
+			log.Printf("[TLS] Advertencia: no se pudo iniciar TLS automático: %v", errTLS)
+			cfg.EnableTLS = false
+		}
 	}
 
 	_, configJSON, pairURL := generatePairConfig(cfg)
@@ -1464,6 +1556,14 @@ func renderDashboard(w http.ResponseWriter, r *http.Request, cfg *Config, sigSer
 </head>
 <body>
     <div class="container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; padding:6px 0;">
+            <div style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:var(--text-muted);">
+                <span>🛡️</span> <span>Sesión Administrador Activa</span>
+            </div>
+            <button onclick="logout()" style="background:rgba(239,68,68,0.12); color:#fca5a5; border:1px solid rgba(239,68,68,0.25); padding:5px 12px; border-radius:6px; font-size:0.8rem; font-weight:500; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all 0.2s;">
+                <span>🚪</span> Cerrar sesión
+            </button>
+        </div>
         <div class="header">
             <h1>📡 Nodo Privado Pingo</h1>
             <div class="badges-row">
@@ -2035,6 +2135,13 @@ func renderDashboard(w http.ResponseWriter, r *http.Request, cfg *Config, sigSer
             } catch (err) {
                 alert("Error revocando sesión: " + err.message);
             }
+        }
+
+        async function logout() {
+            try {
+                await fetch("/api/auth/logout", { method: "POST" });
+            } catch (e) {}
+            window.location.reload();
         }
     </script>
 </body>

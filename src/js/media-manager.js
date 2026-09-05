@@ -5,6 +5,131 @@
 import { state, elements } from './state.js';
 import { updateLocationStatus } from './utils.js';
 import { getConnectionStats } from './peer-manager.js';
+import { isTurnAllowedForMedia, isBroadcastRelayAvailable, getServerConfig } from './constants.js';
+
+export async function publishStreamToWHIP(stream, streamId) {
+    const config = getServerConfig();
+    const whipBase = config.broadcast && config.broadcast.whipUrl;
+    if (!whipBase) return null;
+    
+    const whipEndpoint = `${whipBase.replace(/\/+$/, '')}/${encodeURIComponent(streamId)}`;
+    console.log(`[WHIP] Iniciando publicación hacia ${whipEndpoint}`);
+    
+    const pc = new RTCPeerConnection(config.turn && config.turn.urls && config.turn.urls.length > 0 ? {
+        iceServers: [{ urls: config.turn.urls, username: config.turn.username, credential: config.turn.credential }]
+    } : {});
+    
+    stream.getTracks().forEach(track => {
+        pc.addTrack(track, stream);
+    });
+    
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    
+    await new Promise(resolve => {
+        if (pc.iceGatheringState === 'complete') {
+            resolve();
+        } else {
+            const check = () => {
+                if (pc.iceGatheringState === 'complete') {
+                    pc.removeEventListener('icegatheringstatechange', check);
+                    resolve();
+                }
+            };
+            pc.addEventListener('icegatheringstatechange', check);
+            setTimeout(resolve, 1500);
+        }
+    });
+    
+    const resp = await fetch(whipEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/sdp' },
+        body: pc.localDescription.sdp
+    });
+    
+    if (!resp.ok) {
+        throw new Error(`Servidor WHIP respondió con estado ${resp.status}`);
+    }
+    
+    const answerSDP = await resp.text();
+    await pc.setRemoteDescription({
+        type: 'answer',
+        sdp: answerSDP
+    });
+    
+    state.activeWhipSession = {
+        streamId,
+        pc,
+        whipEndpoint
+    };
+    
+    console.log(`[WHIP] Publicación completada con éxito para stream ${streamId}`);
+    return whipEndpoint;
+}
+
+export async function subscribeStreamViaWHEP(streamId, whepBase, originId, streamType = 'camera') {
+    const config = getServerConfig();
+    const whepEndpoint = `${whepBase.replace(/\/+$/, '')}/${encodeURIComponent(streamId)}`;
+    console.log(`[WHEP] Suscribiéndose a stream ${streamId} en ${whepEndpoint}`);
+    
+    const pc = new RTCPeerConnection(config.turn && config.turn.urls && config.turn.urls.length > 0 ? {
+        iceServers: [{ urls: config.turn.urls, username: config.turn.username, credential: config.turn.credential }]
+    } : {});
+    
+    pc.addTransceiver('video', { direction: 'recvonly' });
+    pc.addTransceiver('audio', { direction: 'recvonly' });
+    
+    const remoteStream = new MediaStream();
+    pc.ontrack = (event) => {
+        console.log(`[WHEP] Track recibido: ${event.track.kind}`);
+        remoteStream.addTrack(event.track);
+        handleIncomingStream('server-relay', remoteStream, originId, streamType);
+    };
+    
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    
+    await new Promise(resolve => {
+        if (pc.iceGatheringState === 'complete') {
+            resolve();
+        } else {
+            const check = () => {
+                if (pc.iceGatheringState === 'complete') {
+                    pc.removeEventListener('icegatheringstatechange', check);
+                    resolve();
+                }
+            };
+            pc.addEventListener('icegatheringstatechange', check);
+            setTimeout(resolve, 1500);
+        }
+    });
+    
+    const resp = await fetch(whepEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/sdp' },
+        body: pc.localDescription.sdp
+    });
+    
+    if (!resp.ok) {
+        throw new Error(`Suscripción WHEP falló con estado ${resp.status}`);
+    }
+    
+    const resourceLocation = resp.headers.get('Location');
+    const answerSDP = await resp.text();
+    await pc.setRemoteDescription({
+        type: 'answer',
+        sdp: answerSDP
+    });
+    
+    state.whepSubscriptions[originId] = {
+        pc,
+        resourceLocation: resourceLocation ? new URL(resourceLocation, whepEndpoint).href : whepEndpoint,
+        stream: remoteStream
+    };
+    
+    console.log(`[WHEP] Suscripción WHEP establecida para stream ${streamId}`);
+    return remoteStream;
+}
 
 export async function startAudioCall() {
     if (!state.activeChatPeerId) {
@@ -37,8 +162,12 @@ export async function startCamera() {
     try {
         const stats = await getConnectionStats(state.activeChatPeerId);
         if (stats && stats.type === 'relay') {
-            alert('El uso de video está deshabilitado en conexiones de tipo TURN para ahorrar ancho de banda.');
-            return;
+            if (!isTurnAllowedForMedia()) {
+                alert('El uso de video está deshabilitado en conexiones de tipo TURN público para ahorrar ancho de banda. Vincula un Servidor Amigo para habilitar TURN.');
+                return;
+            } else {
+                console.log('[Media] Conexión TURN autorizada para video por Servidor Amigo.');
+            }
         }
     } catch (e) {
         console.error('Error checking connection stats:', e);
@@ -74,8 +203,12 @@ export async function startScreenShare() {
     try {
         const stats = await getConnectionStats(state.activeChatPeerId);
         if (stats && stats.type === 'relay') {
-            alert('El uso de pantalla compartida está deshabilitado en conexiones de tipo TURN para ahorrar ancho de banda.');
-            return;
+            if (!isTurnAllowedForMedia()) {
+                alert('El uso de pantalla compartida está deshabilitado en conexiones de tipo TURN público para ahorrar ancho de banda. Vincula un Servidor Amigo para habilitar TURN.');
+                return;
+            } else {
+                console.log('[Media] Conexión TURN autorizada para pantalla compartida por Servidor Amigo.');
+            }
         }
     } catch (e) {
         console.error('Error checking connection stats:', e);
@@ -99,6 +232,16 @@ export async function startScreenShare() {
 }
 
 export function stopLocalStream() {
+    if (state.activeWhipSession) {
+        try {
+            state.activeWhipSession.pc.close();
+            fetch(state.activeWhipSession.whipEndpoint, { method: 'DELETE' }).catch(() => {});
+        } catch (e) {
+            console.warn('[WHIP] Error cerrando sesión WHIP:', e);
+        }
+        state.activeWhipSession = null;
+    }
+
     if (state.localStream) {
         state.localStream.getTracks().forEach(track => track.stop());
         state.localStream = null;
@@ -147,14 +290,36 @@ function handleLocalStream(stream, type) {
 
     const iconType = type === 'audio' ? 'fa-microphone' : (type === 'camera' ? 'fa-video' : 'fa-desktop');
     const labelStatus = type === 'audio' ? 'Llamada de Voz (Audio)' : (type === 'camera' ? 'Cámara' : 'Pantalla');
-    updateLocationStatus(`Transmitiendo ${labelStatus}`, iconType);
     
-    // Notify peers that a stream is available (origin: me, relayedBy: me)
-    broadcastStreamStatus('stream-available', state.myPeerId, state.myPeerId, type);
+    // Transparent Broadcast logic: WHIP on Servidor Amigo vs P2P Direct
+    if (isBroadcastRelayAvailable() && type !== 'audio') {
+        const streamId = `${state.myPeerId}-${Date.now()}`;
+        updateLocationStatus(`Publicando en Servidor Amigo...`, 'fa-tower-broadcast');
+        publishStreamToWHIP(stream, streamId).then(() => {
+            const config = getServerConfig();
+            updateLocationStatus(`Transmitiendo ${labelStatus} (vía Servidor Amigo)`, 'fa-tower-broadcast');
+            broadcastStreamStatus('stream-available', state.myPeerId, state.myPeerId, type, {
+                mode: 'server-relay',
+                streamId: streamId,
+                whepUrl: config.broadcast.whepUrl
+            });
+            const localBadge = document.querySelector('#local-video-container .video-conn-badge');
+            if (localBadge) {
+                localBadge.innerHTML = '<span class="badge-conn-tag relay" title="Emitiendo vía Servidor Amigo (Broadcast Relay)"><i class="fas fa-tower-broadcast"></i> Servidor Amigo</span>';
+            }
+        }).catch(err => {
+            console.warn('[Media] Fallo al publicar en WHIP, fallback a P2P directo:', err);
+            updateLocationStatus(`Transmitiendo ${labelStatus}`, iconType);
+            broadcastStreamStatus('stream-available', state.myPeerId, state.myPeerId, type, { mode: 'p2p' });
+        });
+    } else {
+        updateLocationStatus(`Transmitiendo ${labelStatus}`, iconType);
+        broadcastStreamStatus('stream-available', state.myPeerId, state.myPeerId, type, { mode: 'p2p' });
+    }
 }
 
-function broadcastStreamStatus(statusType, origin = state.myPeerId, relayedBy = state.myPeerId, streamType = 'camera') {
-    const data = { type: statusType, origin, relayedBy, streamType };
+function broadcastStreamStatus(statusType, origin = state.myPeerId, relayedBy = state.myPeerId, streamType = 'camera', extra = {}) {
+    const data = { type: statusType, origin, relayedBy, streamType, ...extra };
     Object.values(state.connections).forEach(conn => {
         if (conn.open) {
             conn.send(data);
@@ -182,6 +347,16 @@ export function handleIncomingStream(peerId, stream, originId = peerId, streamTy
 
 export function handleStreamEnded(originId, peerId = originId) {
     console.log(`[Media] Stream ended for ${originId}`);
+    if (state.whepSubscriptions && state.whepSubscriptions[originId]) {
+        try {
+            state.whepSubscriptions[originId].pc.close();
+            if (state.whepSubscriptions[originId].resourceLocation) {
+                fetch(state.whepSubscriptions[originId].resourceLocation, { method: 'DELETE' }).catch(() => {});
+            }
+        } catch (e) {}
+        delete state.whepSubscriptions[originId];
+    }
+
     removeVideoElement(`remote-video-${originId}`);
     
     if (state.relayedStreams[originId]) {
@@ -294,10 +469,18 @@ function setupVideoControls(container, video, isLocal, streamType, elementId = '
     async function updateConnBadge() {
         if (!document.getElementById(container.id)) return;
         if (isLocal) {
-            connBadge.innerHTML = '<span class="badge-conn-tag local"><i class="fas fa-circle" style="font-size:0.5rem; color:#4ade80;"></i> Local</span>';
+            if (state.activeWhipSession) {
+                connBadge.innerHTML = '<span class="badge-conn-tag relay" title="Emitiendo vía Servidor Amigo (Broadcast Relay)"><i class="fas fa-tower-broadcast"></i> Servidor Amigo</span>';
+            } else {
+                connBadge.innerHTML = '<span class="badge-conn-tag local"><i class="fas fa-circle" style="font-size:0.5rem; color:#4ade80;"></i> Local</span>';
+            }
             return;
         }
         const targetId = elementId.replace('remote-video-', '');
+        if (state.whepSubscriptions && state.whepSubscriptions[targetId]) {
+            connBadge.innerHTML = '<span class="badge-conn-tag relay" title="Recibiendo vía Servidor Amigo (Broadcast WHEP)"><i class="fas fa-tower-broadcast"></i> Servidor Amigo</span>';
+            return;
+        }
         try {
             const stats = await getConnectionStats(targetId);
             if (!stats) {

@@ -16,6 +16,8 @@ export const state = {
     activeVideoConnectionsCount: 0, // Number of peers we are streaming to
     MAX_DIRECT_VIDEO_CONNECTIONS: 2, // Limit before redirecting
     streamRegistry: {}, // originId -> { relayedBy: peerId, timestamp: number } (track who has which stream)
+    activeWhipSession: null, // { streamId, pc, whipUrl } when publishing via Servidor Amigo WHIP
+    whepSubscriptions: {}, // originId -> { pc, whepUrl } when subscribed via Servidor Amigo WHEP
     myCoords: { lat: 0, lng: 0, accuracy: 0 },
     manualLocationMode: false,
     firstFix: true,

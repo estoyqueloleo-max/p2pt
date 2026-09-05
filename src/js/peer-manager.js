@@ -42,12 +42,65 @@ async function fetchTurnCredentials(myPeerId) {
         });
         
         if (response.ok) {
-            return await response.json();
+            const data = await response.json();
+            if (data.capabilities || data.broadcast) {
+                const current = getServerConfig();
+                if (data.capabilities) {
+                    current.capabilities = {
+                        broadcastRelay: Boolean(data.capabilities.broadcast_relay ?? data.capabilities.broadcastRelay),
+                        turnAllowedForMedia: Boolean(data.capabilities.turn_allowed_for_media ?? data.capabilities.turnAllowedForMedia)
+                    };
+                }
+                if (data.broadcast) {
+                    current.broadcast = {
+                        enabled: Boolean(data.broadcast.enabled),
+                        whipUrl: data.broadcast.whip_url || data.broadcast.whipUrl || '',
+                        whepUrl: data.broadcast.whep_url || data.broadcast.whepUrl || ''
+                    };
+                }
+                saveServerConfig(current);
+                console.log('[Config] Updated capabilities from Servidor Amigo:', current.capabilities);
+            }
+            return data;
         }
     } catch (err) {
         console.error('[Relay] Error fetching TURN credentials:', err);
     }
     return null;
+}
+
+async function probeServerCapabilities() {
+    try {
+        const config = getServerConfig();
+        const proto = config.signaling.secure ? 'https' : 'http';
+        const host = config.signaling.host;
+        const port = config.signaling.port;
+        if (host && host !== 'peerjs-server.accreativos.com' && host !== '0.peerjs.com') {
+            const infoUrl = `${proto}://${host}:${port}/api/info`;
+            const resp = await fetch(infoUrl, { method: 'GET' });
+            if (resp.ok) {
+                const info = await resp.json();
+                const current = getServerConfig();
+                if (info.capabilities) {
+                    current.capabilities = {
+                        broadcastRelay: Boolean(info.capabilities.broadcast_relay ?? info.capabilities.broadcastRelay),
+                        turnAllowedForMedia: Boolean(info.capabilities.turn_allowed_for_media ?? info.capabilities.turnAllowedForMedia)
+                    };
+                }
+                if (info.broadcast) {
+                    current.broadcast = {
+                        enabled: Boolean(info.broadcast.enabled),
+                        whipUrl: info.broadcast.whip_url || info.broadcast.whipUrl || '',
+                        whepUrl: info.broadcast.whep_url || info.broadcast.whepUrl || ''
+                    };
+                }
+                saveServerConfig(current);
+                console.log('[Discovery] Discovered Servidor Amigo capabilities via /api/info:', current.capabilities);
+            }
+        }
+    } catch (e) {
+        // Fallback silently if info endpoint not reachable
+    }
 }
 
 function processURLServerConfig() {
@@ -71,6 +124,19 @@ function processURLServerConfig() {
                 if (parsed.signaling) current.signaling = { ...current.signaling, ...parsed.signaling };
                 if (parsed.turn) current.turn = { ...current.turn, ...parsed.turn };
                 if (parsed.cloud) current.cloud = { ...current.cloud, ...parsed.cloud };
+                if (parsed.broadcast) {
+                    current.broadcast = {
+                        enabled: Boolean(parsed.broadcast.enabled),
+                        whipUrl: parsed.broadcast.whip_url || parsed.broadcast.whipUrl || '',
+                        whepUrl: parsed.broadcast.whep_url || parsed.broadcast.whepUrl || ''
+                    };
+                }
+                if (parsed.capabilities) {
+                    current.capabilities = {
+                        broadcastRelay: Boolean(parsed.capabilities.broadcast_relay ?? parsed.capabilities.broadcastRelay),
+                        turnAllowedForMedia: Boolean(parsed.capabilities.turn_allowed_for_media ?? parsed.capabilities.turnAllowedForMedia)
+                    };
+                }
                 saveServerConfig(current);
                 console.log('[Config] Imported custom server configuration from URL:', current);
             }
@@ -82,6 +148,7 @@ function processURLServerConfig() {
 
 export function initPeer(onOpen, onConnection, onError, onDisconnected) {
     processURLServerConfig();
+    probeServerCapabilities();
 
     let randomId = localStorage.getItem('pingo_my_id');
     if (!randomId) {
@@ -459,12 +526,20 @@ export function handlePeerData(peerId, data) {
         const origin = data.origin || peerId;
         const relayedBy = data.relayedBy || peerId;
         
-        console.log(`[Peer] Stream available from origin ${origin} via ${relayedBy}`);
+        console.log(`[Peer] Stream available from origin ${origin} via ${relayedBy} (mode: ${data.mode || 'p2p'})`);
         
         // Register in our local registry to know who has this stream
         state.streamRegistry[origin] = state.streamRegistry[origin] || [];
-        if (!state.streamRegistry[origin].includes(relayedBy)) {
-            state.streamRegistry[origin].push(relayedBy);
+        if (data.mode === 'server-relay' && data.whepUrl && data.streamId) {
+            state.streamRegistry[origin].whepInfo = {
+                streamId: data.streamId,
+                whepUrl: data.whepUrl,
+                streamType: data.streamType || 'camera'
+            };
+        } else {
+            if (!state.streamRegistry[origin].includes(relayedBy)) {
+                state.streamRegistry[origin].push(relayedBy);
+            }
         }
 
         const alias = getAliasForPeer(origin) || origin;

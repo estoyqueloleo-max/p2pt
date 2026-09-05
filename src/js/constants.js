@@ -38,6 +38,15 @@ export const DEFAULT_SERVER_CONFIG = {
         enabled: import.meta.env.VITE_CLOUD_ENABLED === 'true',
         apiEndpoint: import.meta.env.VITE_CLOUD_API_ENDPOINT || 'https://pingo-cloud.accreativos.com',
         turnCredentialsPath: import.meta.env.VITE_CLOUD_TURN_PATH || '/turn-credentials'
+    },
+    broadcast: {
+        enabled: false,
+        whipUrl: '',
+        whepUrl: ''
+    },
+    capabilities: {
+        broadcastRelay: false,
+        turnAllowedForMedia: false
     }
 };
 
@@ -49,13 +58,30 @@ export function getServerConfig() {
             return {
                 signaling: { ...DEFAULT_SERVER_CONFIG.signaling, ...(parsed.signaling || {}) },
                 turn: { ...DEFAULT_SERVER_CONFIG.turn, ...(parsed.turn || {}) },
-                cloud: { ...DEFAULT_SERVER_CONFIG.cloud, ...(parsed.cloud || {}) }
+                cloud: { ...DEFAULT_SERVER_CONFIG.cloud, ...(parsed.cloud || {}) },
+                broadcast: { ...DEFAULT_SERVER_CONFIG.broadcast, ...(parsed.broadcast || {}) },
+                capabilities: { ...DEFAULT_SERVER_CONFIG.capabilities, ...(parsed.capabilities || {}) }
             };
         }
     } catch (e) {
         console.warn('[Config] Error reading pingo_server_config from localStorage:', e);
     }
     return JSON.parse(JSON.stringify(DEFAULT_SERVER_CONFIG));
+}
+
+export function isServerAmigoConnected() {
+    const config = getServerConfig();
+    return Boolean(config.capabilities?.broadcastRelay || config.capabilities?.turnAllowedForMedia || (config.turn && config.turn.urls && config.turn.urls.length > 0 && config.signaling.host !== 'peerjs-server.accreativos.com'));
+}
+
+export function isBroadcastRelayAvailable() {
+    const config = getServerConfig();
+    return Boolean(config.broadcast?.enabled && config.broadcast?.whipUrl);
+}
+
+export function isTurnAllowedForMedia() {
+    const config = getServerConfig();
+    return Boolean(config.capabilities?.turnAllowedForMedia);
 }
 
 export function saveServerConfig(config) {

@@ -2496,6 +2496,25 @@ export function showStreamAvailableNotification(originId, originAlias, relayedBy
         <button class="btn btn-outline btn-xs btn-close-notif" style="border:none; color:white;"><i class="fas fa-times"></i></button>
     `;
     notif.querySelector('.btn-success').addEventListener('click', () => {
+        const whepInfo = state.streamRegistry[originId] && state.streamRegistry[originId].whepInfo;
+        if (whepInfo) {
+            notif.querySelector('span').innerText = 'Conectando vía Servidor Amigo...';
+            import('./media-manager.js').then(mm => {
+                mm.subscribeStreamViaWHEP(whepInfo.streamId, whepInfo.whepUrl, originId, whepInfo.streamType)
+                    .then(() => {
+                        removeStreamAvailableNotification(originId);
+                    })
+                    .catch(err => {
+                        console.error('[WHEP] Error connecting via WHEP:', err);
+                        // Fallback to p2p request if connected to peer
+                        if (state.connections[relayedBy] && state.connections[relayedBy].open) {
+                            state.connections[relayedBy].send({ type: 'stream-request', origin: originId });
+                        }
+                    });
+            });
+            return;
+        }
+
         if (state.connections[relayedBy] && state.connections[relayedBy].open) {
             state.connections[relayedBy].send({ type: 'stream-request', origin: originId });
             notif.querySelector('span').innerText = 'Conectando...';
