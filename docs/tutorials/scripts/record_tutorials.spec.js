@@ -1,5 +1,24 @@
 import { test, expect, chromium } from '@playwright/test';
 import path from 'path';
+import fs from 'fs';
+import { execSync } from 'child_process';
+
+/**
+ * Obtiene la duración exacta en ms del archivo de audio generado para un paso
+ */
+function getStepDurationMs(chapterId, stepIndex, fallbackMs = 6000) {
+    const audioPath = path.resolve(`docs/tutorials/audio/${chapterId}_step_${stepIndex}.wav`);
+    if (fs.existsSync(audioPath)) {
+        try {
+            const out = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioPath}"`, { encoding: 'utf8' }).trim();
+            const sec = parseFloat(out);
+            if (!isNaN(sec) && sec > 0) {
+                return Math.ceil(sec * 1000) + 300;
+            }
+        } catch (e) {}
+    }
+    return fallbackMs;
+}
 
 /**
  * Script automatizado de grabación de videotutoriales para Pingo
@@ -43,7 +62,7 @@ test.describe('Grabación Automatizada de Videotutoriales Pingo', () => {
     });
 
     test('Episodio 01: Identidad Criptográfica y Agenda Privada', async () => {
-        test.setTimeout(90000);
+        test.setTimeout(180000);
         await page.click('#nav-network-btn');
         await page.waitForTimeout(1000);
 
@@ -51,9 +70,10 @@ test.describe('Grabación Automatizada de Videotutoriales Pingo', () => {
         await page.click('#start-tour-identity-btn');
         await page.waitForTimeout(1500);
 
-        // Avanzar por los 8 pasos pausando para visualización
+        // Avanzar por los 8 pasos pausando exactamente la duración de cada locución
         for (let i = 1; i <= 8; i++) {
-            await page.waitForTimeout(2000);
+            const waitMs = getStepDurationMs('chapter_1', i, 9000);
+            await page.waitForTimeout(waitMs);
             await page.click('#tour-next-btn');
         }
 
@@ -61,7 +81,7 @@ test.describe('Grabación Automatizada de Videotutoriales Pingo', () => {
     });
 
     test('Episodio 02: Mapa en Vivo, Geovallas y Persistencia', async () => {
-        test.setTimeout(90000);
+        test.setTimeout(180000);
         await page.click('#nav-network-btn');
         await page.waitForTimeout(1000);
 
@@ -70,7 +90,8 @@ test.describe('Grabación Automatizada de Videotutoriales Pingo', () => {
         await page.waitForTimeout(1500);
 
         for (let i = 1; i <= 6; i++) {
-            await page.waitForTimeout(2000);
+            const waitMs = getStepDurationMs('chapter_2', i, 8000);
+            await page.waitForTimeout(waitMs);
             await page.click('#tour-next-btn');
         }
 
@@ -78,7 +99,7 @@ test.describe('Grabación Automatizada de Videotutoriales Pingo', () => {
     });
 
     test('Episodio 03: Workspace Cartográfico y Control de Versiones Git', async () => {
-        test.setTimeout(90000);
+        test.setTimeout(180000);
         await page.click('#nav-network-btn');
         await page.waitForTimeout(1000);
 
@@ -87,7 +108,8 @@ test.describe('Grabación Automatizada de Videotutoriales Pingo', () => {
         await page.waitForTimeout(1500);
 
         for (let i = 1; i <= 6; i++) {
-            await page.waitForTimeout(2000);
+            const waitMs = getStepDurationMs('chapter_3', i, 8000);
+            await page.waitForTimeout(waitMs);
             await page.click('#tour-next-btn');
         }
 
@@ -95,7 +117,7 @@ test.describe('Grabación Automatizada de Videotutoriales Pingo', () => {
     });
 
     test('Episodio 04: Comunicación Mesh, Streaming P2P e IA Local', async () => {
-        test.setTimeout(90000);
+        test.setTimeout(180000);
         await page.click('#nav-network-btn');
         await page.waitForTimeout(1000);
 
@@ -104,7 +126,8 @@ test.describe('Grabación Automatizada de Videotutoriales Pingo', () => {
         await page.waitForTimeout(1500);
 
         for (let i = 1; i <= 7; i++) {
-            await page.waitForTimeout(2000);
+            const waitMs = getStepDurationMs('chapter_4', i, 8000);
+            await page.waitForTimeout(waitMs);
             await page.click('#tour-next-btn');
         }
 
@@ -112,7 +135,7 @@ test.describe('Grabación Automatizada de Videotutoriales Pingo', () => {
     });
 
     test('Episodio 05: Servidor Autónomo y Gestión de Nodos', async () => {
-        test.setTimeout(90000);
+        test.setTimeout(180000);
         await page.click('#nav-network-btn');
         await page.waitForTimeout(1000);
 
@@ -121,7 +144,8 @@ test.describe('Grabación Automatizada de Videotutoriales Pingo', () => {
         await page.waitForTimeout(1500);
 
         for (let i = 1; i <= 8; i++) {
-            await page.waitForTimeout(2000);
+            const waitMs = getStepDurationMs('chapter_5', i, 8000);
+            await page.waitForTimeout(waitMs);
             await page.click('#tour-next-btn');
         }
 

@@ -46,18 +46,51 @@ export async function discoverServerByTopic(topic, onProgress) {
             const ctrl = new AbortController();
             const timeoutId = setTimeout(() => ctrl.abort(), 2000);
 
-            const res = await fetch(`${base}/api/status`, {
-                signal: ctrl.signal,
-                headers: { 'Accept': 'application/json' }
-            });
+            let res = null;
+            try {
+                res = await fetch(`${base}/api/status`, {
+                    signal: ctrl.signal,
+                    headers: { 'Accept': 'application/json' }
+                });
+            } catch (e) {
+                try {
+                    res = await fetch(`${base}/status`, {
+                        signal: ctrl.signal,
+                        headers: { 'Accept': 'application/json' }
+                    });
+                } catch (e2) {}
+            }
             clearTimeout(timeoutId);
 
-            if (res.ok) {
+            if (res && res.ok) {
                 const data = await res.json();
-                if (data && data.config) {
-                    // Si el servidor coincide con el topic o responde con configuración válida
-                    foundConfig = data.config;
-                    break;
+                if (data) {
+                    if (data.config) {
+                        foundConfig = data.config;
+                        break;
+                    } else if (data.public_host) {
+                        foundConfig = {
+                            signaling: {
+                                host: data.public_host,
+                                port: data.http_port || 9000,
+                                path: '/',
+                                secure: true
+                            },
+                            turn: {
+                                urls: [
+                                    `stun:${data.public_host}:${data.turn_port || 3478}`,
+                                    `turn:${data.public_host}:${data.turn_port || 3478}?transport=udp`
+                                ],
+                                username: 'pingo',
+                                credential: 'pingosecret'
+                            },
+                            capabilities: {
+                                broadcastRelay: true,
+                                turnAllowedForMedia: true
+                            }
+                        };
+                        break;
+                    }
                 }
             }
         } catch (e) {

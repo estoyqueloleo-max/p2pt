@@ -13,12 +13,12 @@ Dispones de una suite completa de **videotutoriales paso a paso generados de for
 
 | Episodio | Título y Temática | Duración | Formato | Guión Técnico |
 | :--- | :--- | :---: | :---: | :--- |
-| **01** | **Identidad Criptográfica y Agenda Privada**<br>*Derivación determinista de IDs (PBKDF2), cero servidores y copias de seguridad JSON.* | 04:30 min | 🟢 1080p | [Ver Guión 01](docs/tutorials/01_identidad_y_agenda.md) |
-| **02** | **Mapa en Tiempo Real, Geovallas y Persistencia**<br>*Precisión GPS adaptativa, zonas seguras con alertas sonoras y Screen Wake Lock.* | 05:00 min | 🟢 1080p | [Ver Guión 02](docs/tutorials/02_mapa_geovallas_persistencia.md) |
-| **03** | **Workspace Cartográfico y Git en el Navegador**<br>*Grabación de tracks (REC), notas georreferenciadas y base de datos isomorphic-git.* | 06:30 min | 🟡 1080p | [Ver Guión 03](docs/tutorials/03_workspace_rutas_git.md) |
-| **04** | **Comunicación Mesh, Streaming P2P e IA Local**<br>*Chat cifrado en malla, transferencia de rutas, streaming de vídeo y búsqueda vectorial ONNX.* | 06:00 min | 🟡 1080p | [Ver Guión 04](docs/tutorials/04_mesh_chat_streaming_ia.md) |
-| **05** | **Servidor Doméstico Autónomo y Alpine Appliance**<br>*Nodo en Go con DuckDNS, auto-UPnP y flasheo de imagen SD inmutable para Raspberry Pi Zero.* | 07:00 min | 🔴 1080p | [Ver Guión 05](docs/tutorials/05_appliance_servidor_propio.md) |
-| 🌟 | **Masterclass Completa (Todos los episodios unidos)** | **~29 min** | 🏆 **Full HD** | [Orquestador](docs/tutorials/scripts/orchestrator.js) |
+| **01** | **Identidad Criptográfica y Agenda Privada**<br>*Derivación determinista de IDs (PBKDF2), cero servidores y copias de seguridad JSON.* | 01:26 min | 🟢 1080p | [Ver Guión 01](docs/tutorials/01_identidad_y_agenda.md) |
+| **02** | **Mapa en Tiempo Real, Geovallas y Persistencia**<br>*Precisión GPS adaptativa, zonas seguras con alertas sonoras y Screen Wake Lock.* | 00:54 min | 🟢 1080p | [Ver Guión 02](docs/tutorials/02_mapa_geovallas_persistencia.md) |
+| **03** | **Workspace Cartográfico y Git en el Navegador**<br>*Grabación de tracks (REC), notas georreferenciadas y base de datos isomorphic-git.* | 00:48 min | 🟢 1080p | [Ver Guión 03](docs/tutorials/03_workspace_rutas_git.md) |
+| **04** | **Comunicación Mesh, Streaming P2P e IA Local**<br>*Chat cifrado en malla, transferencia de rutas, streaming de vídeo y búsqueda vectorial ONNX.* | 00:58 min | 🟢 1080p | [Ver Guión 04](docs/tutorials/04_mesh_chat_streaming_ia.md) |
+| **05** | **Servidor Doméstico Autónomo y Alpine Appliance**<br>*Nodo en Go con DuckDNS, auto-UPnP y flasheo de imagen SD inmutable para Raspberry Pi Zero.* | 01:05 min | 🟢 1080p | [Ver Guión 05](docs/tutorials/05_appliance_servidor_propio.md) |
+| 🌟 | **Masterclass Completa (Todos los episodios unidos)** | **~05:10 min** | 🏆 **Full HD** | [Orquestador](docs/tutorials/scripts/orchestrator.js) |
 
 > [!TIP]
 > **¿Cómo generar o regenerar los vídeos?**

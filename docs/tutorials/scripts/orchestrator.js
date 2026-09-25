@@ -38,16 +38,18 @@ if (args.includes('--chapter')) {
         targetChapters = [ALL_CHAPTERS[idx - 1]];
     }
 }
-
 let selectedVoice = 'ef_dora';
 if (args.includes('--voice')) {
     selectedVoice = args[args.indexOf('--voice') + 1];
 }
 
+const forceTTS = args.includes('--force-tts');
+
 async function run() {
     console.log(`\n======================================================`);
     console.log(`  🎬 Pingo Masterclass & Video Tutorial Orchestrator  `);
     console.log(`  🎙️ Voz Kokoro: ${selectedVoice}`);
+    if (forceTTS) console.log(`  🔄 Modo: Regeneración forzada de audio (--force-tts)`);
     console.log(`======================================================\n`);
 
     mkdirSafe(VIDEOS_DIR);
@@ -58,21 +60,27 @@ async function run() {
         console.log(`\n📺 Procesando: [${chapter.id}] ${chapter.title}`);
         console.log(`------------------------------------------------------`);
 
-        // 1. Generar segmentos de locución con Kokoro TTS
-        console.log(`\n🎙️ Paso 1: Generando locución con Kokoro TTS (${selectedVoice})...`);
+        // 1. Generar o verificar segmentos de locución con Kokoro TTS
+        console.log(`\n🎙️ Paso 1: Verificando/Generando locución con Kokoro TTS (${selectedVoice})...`);
         const segmentFiles = [];
         for (let i = 0; i < chapter.steps.length; i++) {
             const step = chapter.steps[i];
             const segPath = path.join(AUDIO_DIR, `${chapter.id}_step_${step.stepIndex}.wav`);
-            await generateSpeech(step.voiceover, segPath, selectedVoice);
+            if (forceTTS || !fs.existsSync(segPath) || fs.statSync(segPath).size < 1000) {
+                await generateSpeech(step.voiceover, segPath, selectedVoice);
+            } else {
+                console.log(`   ✓ Reutilizando audio existente: ${path.basename(segPath)}`);
+            }
             if (fs.existsSync(segPath)) {
                 segmentFiles.push(segPath);
             }
         }
 
         const unifiedAudio = path.join(AUDIO_DIR, `${chapter.id}_full.wav`);
-        concatAudioSegments(segmentFiles, unifiedAudio);
-        console.log(`✓ Locución completa generada en: ${unifiedAudio}`);
+        if (forceTTS || !fs.existsSync(unifiedAudio) || fs.statSync(unifiedAudio).size < 1000) {
+            concatAudioSegments(segmentFiles, unifiedAudio);
+        }
+        console.log(`✓ Locución completa lista en: ${unifiedAudio}`);
 
         // 2. Grabar vídeo de pantalla en Full HD con Playwright
         console.log(`\n🎥 Paso 2: Grabando sesión de pantalla con Playwright...`);
