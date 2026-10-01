@@ -69,6 +69,42 @@ async function fetchTurnCredentials(myPeerId) {
     return null;
 }
 
+export async function fetchGitCredentials(myPeerId) {
+    if (!myPeerId) return null;
+    try {
+        const config = getServerConfig();
+        const proto = config.signaling.secure ? 'https' : 'http';
+        const host = config.signaling.host;
+        const port = config.signaling.port;
+        if (!host || host === 'peerjs-server.accreativos.com' || host === '0.peerjs.com') {
+            return null;
+        }
+
+        const url = `${proto}://${host}:${port}/git-credentials?peerId=${encodeURIComponent(myPeerId)}`;
+        const resp = await fetch(url);
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data.enabled && data.url && data.token) {
+                const gitPayload = {
+                    url: data.url,
+                    user: data.username,
+                    token: data.token
+                };
+                const current = getServerConfig();
+                current.git = { enabled: true, ...gitPayload };
+                saveServerConfig(current);
+                localStorage.setItem('git_remote', JSON.stringify(gitPayload));
+                localStorage.setItem('pingo_git_remote', JSON.stringify(gitPayload));
+                console.log('[Git] Auto-configured private peer Git remote from /git-credentials:', data.url);
+                return data;
+            }
+        }
+    } catch (err) {
+        console.warn('[Git] fetchGitCredentials error:', err);
+    }
+    return null;
+}
+
 async function probeServerCapabilities() {
     try {
         const config = getServerConfig();
@@ -218,6 +254,8 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
                             ];
                         }
                     }
+
+                    await fetchGitCredentials(id);
                 } catch (err) {
                     console.warn('[Cloud] Background initialization failed:', err);
                 }
