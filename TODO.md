@@ -1,4 +1,7 @@
 # 📌 Próximos Pasos (Prioridad Alta)
+- [ ] **Revisar descubrimiento P2P**: Creo que el problema es que empieza a escanear urls (de servidor P2P) que no son la que le hemos dado a la configuracion ... hay que revisar la parte de "subir el hash".
+
+
 - [ ] **Revisar api de maps que se usa**: Porque parece que era CartoDb por debajo y ahora pide apikey.
 - [ ] **Configuración de VAPID en producción**: Mover las claves VAPID a variables de entorno en Cloudflare.
 - [ ] **Gitea CORS Config**: Configurar `app.ini` en la RPi para permitir CORS.
@@ -44,3 +47,14 @@
 
 # 🧩 Extras / Plugins
 - [ ] **Sistema de Plugins**: Para hacer un "tron" con las rutas, cambiar la visualización y la comunicación.
+
+# 🏷️ Balizas BLE & Redes de Rastreo (AirTags / Find My)
+- [ ] **Servicio Gateway BLE en Raspberry Pi**: Escáner local con Bluetooth LE nativo para detectar balizas de proximidad (llegada/salida del hogar).
+- [ ] **Conector Apple Find My (OpenHaystack / FindMy.py)**: Polling de reportes cifrados, desencriptado local con clave privada y commit automático en Git.
+- [ ] **Soporte de Balizas Baratas (nRF52 / ESP32)**: Documentar firmware y emparejamiento de Pingo Tags mediante QR.
+
+# 💼 Nuevas Líneas de Negocio & Verticales (ver business_plan.md)
+- [ ] **Módulo Peritaje Inmutable (LegalTech)**: Generación de informe PDF/GPX firmado con hash Git para aseguradoras y lindes rústicas.
+- [ ] **Modo Convoy / Off-Grid**: Perfil de red para conectar vehículos en expedición a la RPi con streaming de audio P2P (intercom).
+- [ ] **Modo Smart Agro**: Soporte de collares de bajo coste y geovallas de pastoreo con nodos solares.
+- [ ] **Módulo Content Pipeline**: Script para empaquetar el generador de vídeos (Playwright + Kokoro + FFmpeg) como herramienta CLI reutilizable.

@@ -19,6 +19,14 @@ import { startRecording, stopRecording, saveRoute } from './route-manager.js';
 import { pushToRemote, pullFromRemote, loadRoutesFromGit, commitLinkFile, readRawFile, deleteGitRepo } from './git-manager.js';
 import { renderRoute, clearRoute } from './map-manager.js';
 import { shareRouteP2P } from './sync-manager.js';
+import { 
+    openMastodonPWA, 
+    openRouteMastodonShareModal, 
+    publishToot, 
+    openWebComposer, 
+    saveMastodonConfig, 
+    getMastodonConfig 
+} from './mastodon-manager.js';
 import { vectorManager } from './vector-manager.js';
 import { marked } from 'marked';
 import { createGitgraph, templateExtend, TemplateName } from '@gitgraph/js';
@@ -289,6 +297,9 @@ export function renderRoutes() {
                 </div>
             </div>
             <div class="contact-actions">
+                <button class="btn btn-outline btn-sm share-mastodon" data-id="${item.id}" title="Compartir en Fediverso / Mastodon" style="color: #6364ff; border-color: rgba(99, 100, 255, 0.4);">
+                    <i class="fab fa-mastodon"></i>
+                </button>
                 <button class="btn btn-outline btn-sm share-route" data-id="${item.id}" title="Compartir P2P">
                     <i class="fas fa-share-nodes"></i>
                 </button>
@@ -354,6 +365,15 @@ export function renderRoutes() {
             } else {
                 const peerId = prompt('Escribe el ID (o abre un chat con alguien para compartir directamente):');
                 if (peerId) shareRouteP2P(routeId, peerId);
+            }
+        });
+    });
+
+    elements.routesContainer.querySelectorAll('.share-mastodon').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const item = state.routes.find(r => r.id === btn.dataset.id);
+            if (item) {
+                openRouteMastodonShareModal(item);
             }
         });
     });
@@ -641,6 +661,7 @@ export function setupEventListeners() {
     }
 
     setupVectorListeners();
+    setupMastodonListeners();
     // Clear app badge on startup
     if ('clearAppBadge' in navigator) {
         navigator.clearAppBadge().catch(() => {});
@@ -926,7 +947,7 @@ export function setupEventListeners() {
     // --- SINCRONIZACIÓN GIT ---
     if (elements.gitPushBtn) {
         // Load saved config
-        const savedGit = JSON.parse(localStorage.getItem('pingo_git_remote') || '{}');
+        const savedGit = JSON.parse(localStorage.getItem('git_remote') || localStorage.getItem('pingo_git_remote') || '{}');
         if (elements.gitRemoteUrl) elements.gitRemoteUrl.value = savedGit.url || '';
         if (elements.gitUsername) elements.gitUsername.value = savedGit.user || '';
         // Note: Password/Token handled with care
@@ -948,11 +969,12 @@ export function setupEventListeners() {
             try {
                 await pushToRemote(url, user, token);
                 
-                // Save config (URL and User permanently, Token too as requested)
+                // Save config under both keys
+                localStorage.setItem('git_remote', JSON.stringify({ url, user, token }));
                 localStorage.setItem('pingo_git_remote', JSON.stringify({ url, user, token }));
 
                 updateLocationStatus('Sincronización (Push) completada ✅', 'fa-cloud-arrow-up');
-                alert('¡Rutas subidas con éxito a Gitea!');
+                alert('¡Rutas sincronizadas con éxito en el repositorio Git!');
             } catch (err) {
                 if (err.message.includes('Push rechazado')) {
                     const choice = confirm('¡Push rechazado!\n\nEl servidor tiene cambios más recientes. ¿Quieres FORZAR la versión del móvil y sobreescribir el servidor?\n\n(Aceptar = Forzar Móvil, Cancelar = Intentar bajar primero)');
@@ -993,6 +1015,7 @@ export function setupEventListeners() {
                 await pullFromRemote(url, user, token);
                 
                 // Save config
+                localStorage.setItem('git_remote', JSON.stringify({ url, user, token }));
                 localStorage.setItem('pingo_git_remote', JSON.stringify({ url, user, token }));
 
                 // Refresh local state
@@ -1370,6 +1393,20 @@ export function setupEventListeners() {
 
         if (parsed.cloud && parsed.cloud.apiEndpoint && elements.serverCloudApi) {
             elements.serverCloudApi.value = parsed.cloud.apiEndpoint;
+        }
+
+        if (parsed.git && parsed.git.enabled && parsed.git.url) {
+            const gitConfig = {
+                url: parsed.git.url,
+                user: parsed.git.username || '',
+                token: parsed.git.token || ''
+            };
+            localStorage.setItem('git_remote', JSON.stringify(gitConfig));
+            localStorage.setItem('pingo_git_remote', JSON.stringify(gitConfig));
+            if (elements.gitRemoteUrl) elements.gitRemoteUrl.value = gitConfig.url;
+            if (elements.gitUsername) elements.gitUsername.value = gitConfig.user;
+            if (elements.gitToken) elements.gitToken.value = gitConfig.token;
+            console.log('[Config] Repositorio Git privado configurado automáticamente:', gitConfig.url);
         }
 
         saveServerConfigFromUI();
@@ -2105,6 +2142,81 @@ export function setupVectorListeners() {
     if (elements.connStatsClose) {
         elements.connStatsClose.addEventListener('click', () => {
             elements.connStatsModal.style.display = 'none';
+        });
+    }
+}
+
+/**
+ * Setup Mastodon / Fediverse UI listeners
+ */
+export function setupMastodonListeners() {
+    const btnOpenMastodon = document.getElementById('btn-open-mastodon');
+    if (btnOpenMastodon) {
+        btnOpenMastodon.addEventListener('click', () => {
+            openMastodonPWA();
+        });
+    }
+
+    const modal = document.getElementById('mastodon-share-modal');
+    const closeBtn = document.getElementById('mastodon-modal-close');
+    if (closeBtn && modal) {
+        closeBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+    }
+
+    const btnOpenPWA = document.getElementById('mastodon-btn-open-pwa');
+    if (btnOpenPWA) {
+        btnOpenPWA.addEventListener('click', () => {
+            const instUrl = document.getElementById('mastodon-instance-url')?.value;
+            openMastodonPWA(instUrl);
+        });
+    }
+
+    const btnComposer = document.getElementById('mastodon-btn-composer');
+    if (btnComposer) {
+        btnComposer.addEventListener('click', () => {
+            const text = document.getElementById('mastodon-toot-text')?.value;
+            const instUrl = document.getElementById('mastodon-instance-url')?.value;
+            if (instUrl) {
+                const conf = getMastodonConfig();
+                conf.instanceUrl = instUrl;
+                saveMastodonConfig(conf);
+            }
+            openWebComposer(instUrl, text);
+        });
+    }
+
+    const btnPublish = document.getElementById('mastodon-btn-publish');
+    if (btnPublish) {
+        btnPublish.addEventListener('click', async () => {
+            const text = document.getElementById('mastodon-toot-text')?.value;
+            const instUrl = document.getElementById('mastodon-instance-url')?.value;
+            const token = document.getElementById('mastodon-access-token')?.value;
+
+            if (!instUrl) {
+                alert('Por favor especifica la URL de la instancia Mastodon o GoToSocial.');
+                return;
+            }
+            if (!token) {
+                alert('Para publicar directamente desde la app necesitas un Access Token (creado en Mastodon / Preferencias / Desarrollo con permisos "write:statuses"). Si prefieres no usar token, pulsa "Compositor Web".');
+                return;
+            }
+
+            btnPublish.disabled = true;
+            btnPublish.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publicando...';
+
+            try {
+                saveMastodonConfig({ instanceUrl: instUrl, token: token });
+                const res = await publishToot({ instanceUrl: instUrl, token: token, statusText: text });
+                alert('¡Ruta publicada con éxito en el Fediverso!\\n' + (res.url || 'Status ID: ' + res.id));
+                if (modal) modal.style.display = 'none';
+            } catch (err) {
+                alert('Error al publicar toot: ' + err.message);
+            } finally {
+                btnPublish.disabled = false;
+                btnPublish.innerHTML = '<i class="fab fa-mastodon"></i> Publicar';
+            }
         });
     }
 }

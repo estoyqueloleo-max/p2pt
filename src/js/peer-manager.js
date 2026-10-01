@@ -137,6 +137,24 @@ function processURLServerConfig() {
                         turnAllowedForMedia: Boolean(parsed.capabilities.turn_allowed_for_media ?? parsed.capabilities.turnAllowedForMedia)
                     };
                 }
+                if (parsed.git && parsed.git.enabled && parsed.git.url) {
+                    const gitPayload = {
+                        url: parsed.git.url,
+                        user: parsed.git.username || '',
+                        token: parsed.git.token || ''
+                    };
+                    current.git = { enabled: true, ...gitPayload };
+                    localStorage.setItem('git_remote', JSON.stringify(gitPayload));
+                    localStorage.setItem('pingo_git_remote', JSON.stringify(gitPayload));
+                    console.log('[Config] Auto-configured private Git remote from URL serverConfig:', parsed.git.url);
+                }
+                if (parsed.mastodon && parsed.mastodon.enabled) {
+                    current.mastodon = { ...parsed.mastodon };
+                    localStorage.setItem('pingo_mastodon_config', JSON.stringify({
+                        instanceUrl: parsed.mastodon.url || ''
+                    }));
+                    console.log('[Config] Auto-configured Mastodon node from URL serverConfig:', parsed.mastodon.url);
+                }
                 saveServerConfig(current);
                 console.log('[Config] Imported custom server configuration from URL:', current);
             }

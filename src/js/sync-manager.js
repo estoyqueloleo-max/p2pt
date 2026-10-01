@@ -110,9 +110,11 @@ export async function handleIncomingRoute(peerId, data) {
 export function getGitProxyUrl(targetUrl) {
     // Detect local/private IPs and localhost
     const isLocal = /^(https?:\/\/)?(localhost|127\.0\.0\.1|192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(targetUrl);
+    // Detect direct p2pt-server appliance Git endpoint (implements full CORS natively)
+    const isDirectAppliance = targetUrl.includes('/git/');
     
-    if (isLocal) {
-        console.log(`[Sync] Local/VPN target detected, bypassing Git Proxy: ${targetUrl}`);
+    if (isLocal || isDirectAppliance) {
+        console.log(`[Sync] Direct/CORS-enabled target detected, bypassing Git Proxy: ${targetUrl}`);
         return targetUrl;
     }
 

@@ -34,6 +34,7 @@
 
 
 <button class="icon-btn" id="btn-open-youtube" title="Abrir YouTube"><i class="fab fa-youtube" style="color: #ff0000;"></i></button>
+<button class="icon-btn" id="btn-open-mastodon" title="Abrir Fediverso / Mastodon (PWA)"><i class="fab fa-mastodon" style="color: #6364ff;"></i></button>
 
 </div>
 </header>
@@ -622,6 +623,45 @@
                 <input type="file" id="qr-file-input" accept="image/*" style="display: none;" />
             </label>
             <button class="btn btn-outline" id="qr-camera-close-btn">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Compartir en Fediverso / Mastodon -->
+<div class="modal-overlay" id="mastodon-share-modal" style="display: none; z-index: 10005;">
+    <div class="modal-content" style="max-width: 90%; width: 460px;">
+        <div class="modal-header">
+            <i class="fab fa-mastodon modal-icon" style="color: #6364ff;"></i>
+            <h3>Compartir en el Fediverso</h3>
+            <button class="btn-icon-close" id="mastodon-modal-close" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted);"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" style="padding: 15px;">
+            <p class="small-hint" style="margin-top: 0;">Publica este track como un toot federado visible en toda la red Mastodon.</p>
+            
+            <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 5px;">Contenido de la Publicación</label>
+            <textarea id="mastodon-toot-text" rows="5" style="width: 100%; border-radius: 8px; padding: 10px; font-family: inherit; font-size: 0.85rem; background: var(--bg-input, #1e293b); color: var(--text, #fff); border: 1px solid var(--border, #334155); resize: vertical; box-sizing: border-box;"></textarea>
+
+            <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+                <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Instancia Mastodon / GoToSocial</label>
+                <input type="text" id="mastodon-instance-url" placeholder="https://tu-nodo.duckdns.org" style="width: 100%; font-size: 0.8rem; padding: 6px 10px; border-radius: 6px; margin-bottom: 8px; box-sizing: border-box;" />
+
+                <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Token de Acceso (Opcional para publicar en 1 clic)</label>
+                <input type="password" id="mastodon-access-token" placeholder="Bearer Token (write:statuses)" style="width: 100%; font-size: 0.8rem; padding: 6px 10px; border-radius: 6px; box-sizing: border-box;" />
+                <span class="small-hint" style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-top: 3px;">Si no tienes token, pulsa "Web Intent" para componerlo en el navegador.</span>
+            </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <button class="btn btn-outline btn-sm" id="mastodon-btn-open-pwa" title="Abrir cliente web completo (Phanpy PWA)">
+                <i class="fas fa-external-link-alt"></i> Abrir PWA
+            </button>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-outline btn-sm" id="mastodon-btn-composer" title="Abrir en el compositor web de la instancia">
+                    <i class="fas fa-pen-to-square"></i> Web Intent
+                </button>
+                <button class="btn btn-primary btn-sm" id="mastodon-btn-publish" style="background: #6364ff; border-color: #6364ff;">
+                    <i class="fab fa-mastodon"></i> Publicar
+                </button>
+            </div>
         </div>
     </div>
 </div>
