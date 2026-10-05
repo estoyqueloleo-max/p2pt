@@ -4,8 +4,9 @@
 
 import { state, elements } from './state.js';
 import { derivePeerId, updateLocationStatus } from './utils.js';
+import { getOrCreateDeviceKeyPair, exportMyPublicKey, getPublicKeyFingerprint } from './crypto-manager.js';
 
-export function loadIdentity() {
+export async function loadIdentity() {
     try {
         state.myIdentity.phrase = localStorage.getItem('pingo_passphrase') || '';
         state.myIdentity.salt = localStorage.getItem('pingo_salt') || '';
@@ -13,6 +14,21 @@ export function loadIdentity() {
         if (elements.identityPhrase) elements.identityPhrase.value = state.myIdentity.phrase;
         if (elements.identitySalt) elements.identitySalt.value = state.myIdentity.salt;
         if (elements.identityAlias) elements.identityAlias.value = state.myIdentity.alias;
+
+        // Initialize and bind device-bound ECDSA key pair
+        try {
+            await getOrCreateDeviceKeyPair();
+            const pubB64 = await exportMyPublicKey();
+            state.myIdentity.publicKey = pubB64;
+            const fp = await getPublicKeyFingerprint(pubB64);
+            state.myIdentity.fingerprint = fp;
+            if (elements.identityCryptoFingerprint) {
+                elements.identityCryptoFingerprint.textContent = `Huella: ${fp}`;
+            }
+            console.log(`[ZeroTrust] Identidad Criptográfica cargada. Huella (Fingerprint): ${fp}`);
+        } catch (cryptoErr) {
+            console.warn('[ZeroTrust] Advertencia inicializando par de claves:', cryptoErr);
+        }
     } catch (e) {
         console.error('Error loading identity:', e);
     }

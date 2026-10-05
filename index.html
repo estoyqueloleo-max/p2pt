@@ -66,11 +66,21 @@
 <input class="input-sm" id="identity-phrase" placeholder="Tu frase secreta..." style="flex: 2;" type="password"/>
 <input class="input-sm" id="identity-salt" placeholder="Sal" style="flex: 1;" type="text"/>
 </div>
+</div>
+<div style="margin-top: 10px; padding: 8px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; font-size: 0.75rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+        <span style="font-weight: 600; color: #818cf8;"><i class="fas fa-shield-alt"></i> Clave Criptográfica ECDSA:</span>
+        <button type="button" class="btn btn-outline btn-xs" id="copy-my-pubkey-btn" title="Copiar Clave Pública para compartir" style="padding: 2px 6px; font-size: 0.7rem;">
+            <i class="fas fa-copy"></i> Copiar
+        </button>
+    </div>
+    <div style="font-family: monospace; color: #cbd5e1; word-break: break-all;" id="identity-crypto-fingerprint">Huella: Cargando...</div>
+</div>
 <div class="form-actions-row" style="margin-top: 10px;">
 <button class="btn btn-outline btn-sm" id="cancel-identity-btn">Cancelar</button>
 <button class="btn btn-primary btn-sm" id="save-identity-btn">Fijar Identidad</button>
 </div>
-<p class="small-hint">Usa la misma frase y sal en otro móvil para recuperar tu ID.</p>
+<p class="small-hint">Tu clave privada está anclada a este dispositivo (extractable: false) para evitar suplantaciones.</p>
 </div>
 <div class="divider"><span>COPIA DE SEGURIDAD</span></div>
 <div class="actions-row" style="display: flex; gap: 8px; margin-bottom: 10px;">
@@ -91,6 +101,7 @@
 <input class="input-sm" id="contact-name" placeholder="Nombre (ej: Hijo)" type="text"/>
 <input class="input-sm" id="contact-phrase" placeholder="Frase Secreta (opcional)" type="password"/>
 <input class="input-sm" id="contact-salt" placeholder="Sal de Seguridad (opcional)" type="text"/>
+<input class="input-sm" id="contact-publickey" placeholder="Clave Pública ECDSA (opcional)" type="text"/>
 <input class="input-sm" id="contact-id" placeholder="ID de conexión (manual)" type="text"/>
 <div class="form-actions-row">
 <button class="btn btn-outline btn-sm" id="cancel-contact-btn">Cancelar</button>

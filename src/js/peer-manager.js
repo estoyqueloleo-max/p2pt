@@ -7,6 +7,9 @@ import { state, elements } from './state.js';
 import { PEER_CONFIG, CLOUD_CONFIG, getActivePeerConfig, getServerConfig, saveServerConfig } from './constants.js';
 import { generateAuthToken, verifyAuthToken, updateLocationStatus } from './utils.js';
 import { 
+    signChallenge, verifyPeerChallenge, generateChallengeNonce, exportMyPublicKey 
+} from './crypto-manager.js';
+import { 
     updatePeerMarker, removePeerMarker, updateTrail, 
     fitMapBounds 
 } from './map-manager.js';
@@ -462,22 +465,115 @@ export function handleIncomingConnection(conn) {
 
         console.log('[Peer] Awaiting auth from:', conn.peer);
         state.connections[conn.peer] = conn;
+
+        // Si tenemos clave privada configurada o el contacto tiene clave pública registrada, emitimos un desafío
+        try {
+            issuedChallenge = generateChallengeNonce();
+            console.log(`[ZeroTrust] Emitiendo desafío a ${conn.peer}: ${issuedChallenge}`);
+            conn.send({
+                type: 'auth-challenge',
+                challenge: issuedChallenge
+            });
+        } catch (e) {
+            console.warn('[ZeroTrust] No se pudo emitir desafío criptográfico:', e);
+        }
     };
 
     if (conn.open) onOpen();
     else conn.on('open', onOpen);
 
+    let issuedChallenge = null;
+    let peerPublicKey = null;
+
     conn.on('data', async (data) => {
         try {
             console.log(`[Peer] Data received from ${conn.peer}:`, data.type);
+            
+            // 1. Handshake Challenge-Response Asimétrico (Zero Trust)
+            if (data.type === 'auth-challenge') {
+                // El peer emisor nos pide resolver un desafío criptográfico
+                try {
+                    console.log(`[ZeroTrust] Desafío recibido de ${conn.peer}. Firmando con clave privada...`);
+                    const signature = await signChallenge(data.challenge);
+                    const myPub = await exportMyPublicKey();
+                    conn.send({
+                        type: 'auth-response',
+                        signature,
+                        publicKey: myPub
+                    });
+                } catch (err) {
+                    console.error('[ZeroTrust] Error firmando desafío:', err);
+                }
+                return;
+            }
+
+            if (data.type === 'auth-response') {
+                // Recibimos la firma y clave pública del peer remoto
+                const { loadAgenda } = await import('./identity-manager.js');
+                loadAgenda();
+                const contact = state.agenda.find(c => String(c.derivedId) === String(conn.peer));
+                let expectedPub = contact?.publicKey || peerPublicKey;
+
+                let isValid = false;
+                if (issuedChallenge && data.signature && data.publicKey) {
+                    // Si tenemos una clave pública guardada para este contacto, DEBE coincidir con la que envía
+                    if (expectedPub && expectedPub !== data.publicKey) {
+                        console.error(`[ZeroTrust] ❌ Alerta de Suplantación: Clave pública de ${conn.peer} no coincide con la agenda.`);
+                        isValid = false;
+                    } else {
+                        isValid = await verifyPeerChallenge(data.publicKey, issuedChallenge, data.signature);
+                        if (isValid && contact && !contact.publicKey) {
+                            // Si es la primera vez que conecta exitosamente, guardamos su clave pública en la agenda
+                            contact.publicKey = data.publicKey;
+                            const { saveAgenda } = await import('./identity-manager.js');
+                            saveAgenda();
+                            console.log(`[ZeroTrust] Clave pública de ${contact.alias} guardada automáticamente en agenda.`);
+                        }
+                    }
+                }
+
+                console.log(`[ZeroTrust] Resultado de verificación de desafío para ${conn.peer}: ${isValid}`);
+
+                if (isValid) {
+                    authenticated = true;
+                    clearTimeout(authTimeout);
+                    const alias = getAliasForPeer(conn.peer) || conn.peer;
+                    console.log('[ZeroTrust] ✅ Peer autenticado criptográficamente (Firma digital válida):', conn.peer);
+                    updateLocationStatus(`Pingo verificado 🛡️: ${alias}`, 'fa-shield-halved');
+                    getUI().then(ui => {
+                        ui.renderAgenda();
+                        ui.updateDisconnectButton();
+                    });
+                    conn.send({ type: 'location', lat: state.myCoords.lat, lng: state.myCoords.lng });
+
+                    while (pendingBuffer.length > 0) {
+                        const queued = pendingBuffer.shift();
+                        handlePeerData(conn.peer, queued);
+                    }
+                } else {
+                    console.error('[ZeroTrust] ❌ Desafío criptográfico fallido desde:', conn.peer);
+                    updateLocationStatus(`Fallo criptográfico: ${conn.peer}`, 'fa-triangle-exclamation');
+                    conn.close();
+                }
+                return;
+            }
+
+            // 2. Autenticación Clásica (Legacy por Salt o Enlace Directo)
             if (data.type === 'auth') {
+                const contact = state.agenda.find(c => String(c.derivedId) === String(conn.peer));
+                // Si el contacto ya tiene una Clave Pública registrada en la agenda, NO permitimos bypass legacy por salt
+                if (contact?.publicKey) {
+                    console.log(`[ZeroTrust] Peer ${conn.peer} tiene clave pública registrada. Esperando respuesta al desafío criptográfico.`);
+                    return;
+                }
+
                 const isValid = await verifyAuthToken(data.token, state.myIdentity.salt);
-                console.log(`[Peer] Auth attempt from ${conn.peer}. Valid: ${isValid}`);
+                console.log(`[Peer] Auth legacy attempt from ${conn.peer}. Valid: ${isValid}`);
                 if (isValid || state.myIdentity.salt === '') {
                     authenticated = true;
                     clearTimeout(authTimeout);
                     const alias = getAliasForPeer(conn.peer) || conn.peer;
-                    console.log('[Peer] Authenticated incoming connection:', conn.peer);
+                    console.log('[Peer] Authenticated incoming connection (legacy/salt):', conn.peer);
                     updateLocationStatus(`Pingo conectado: ${alias}`, 'fa-check-circle');
                     getUI().then(ui => {
                         ui.renderAgenda();
@@ -785,7 +881,7 @@ export async function connectToPeer(targetId) {
         }
 
         console.log('[Peer] Connection open to:', targetId, 'Sending auth...');
-        updateLocationStatus(`Pingo conectado: ${alias}`, 'fa-check-circle');
+        // Enviar handshake legacy (para compatibilidad hacia atrás) y estar listos para responder al desafío asimétrico
         const token = await generateAuthToken(saltToUse);
         console.log('[Peer] Generated auth token for:', targetId);
         conn.send({ type: 'auth', token: token });
@@ -801,8 +897,24 @@ export async function connectToPeer(targetId) {
         conn.send({ type: 'location', lat: state.myCoords.lat, lng: state.myCoords.lng });
     });
 
-    conn.on('data', (data) => {
+    conn.on('data', async (data) => {
         console.log(`[Peer] Data received from ${targetId}:`, data.type);
+        if (data.type === 'auth-challenge') {
+            // El peer receptor nos desafía a firmar un nonce
+            try {
+                console.log(`[ZeroTrust] Respondiendo a desafío de ${targetId}...`);
+                const signature = await signChallenge(data.challenge);
+                const myPub = await exportMyPublicKey();
+                conn.send({
+                    type: 'auth-response',
+                    signature,
+                    publicKey: myPub
+                });
+            } catch (err) {
+                console.error('[ZeroTrust] Error en respuesta de desafío saliente:', err);
+            }
+            return;
+        }
         handlePeerData(targetId, data);
     });
 

@@ -111,6 +111,7 @@ export function renderAgenda() {
                 <div class="contact-main">
                     <span class="contact-status-dot ${statusClass}" style="border-color: ${getPeerColor(id)}"></span>
                     <span class="contact-name">${contact.alias}</span>
+                    ${contact.publicKey ? '<i class="fas fa-shield-alt" style="font-size: 0.75rem; color: #4ade80; margin-left: 5px;" title="Verificación Asimétrica (Zero Trust Activo)"></i>' : ''}
                 </div>
                 <span class="contact-id-hint">ID: ${contact.derivedId}</span>
             </div>
@@ -807,6 +808,7 @@ export function setupEventListeners() {
         const alias = elements.contactName.value.trim();
         const phrase = elements.contactPhrase.value.trim();
         const salt = elements.contactSalt.value.trim();
+        const publicKey = elements.contactPublicKey ? elements.contactPublicKey.value.trim() : '';
         const manualId = elements.contactId.value.trim();
 
         if (!alias || (!phrase && !manualId)) {
@@ -815,7 +817,7 @@ export function setupEventListeners() {
         }
 
         const derivedId = manualId || (await derivePeerId(phrase, salt));
-        state.agenda.push({ alias, phrase, salt, derivedId });
+        state.agenda.push({ alias, phrase, salt, publicKey: publicKey || null, derivedId });
         saveAgenda();
         renderAgenda();
         
@@ -826,8 +828,20 @@ export function setupEventListeners() {
         elements.contactName.value = '';
         elements.contactPhrase.value = '';
         elements.contactSalt.value = '';
+        if (elements.contactPublicKey) elements.contactPublicKey.value = '';
         elements.contactId.value = '';
     });
+
+    if (elements.copyMyPubkeyBtn) {
+        elements.copyMyPubkeyBtn.addEventListener('click', async () => {
+            const { exportMyPublicKey } = await import('./crypto-manager.js');
+            const pubB64 = await exportMyPublicKey();
+            if (pubB64) {
+                await navigator.clipboard.writeText(pubB64);
+                alert('Clave Pública copiada al portapapeles. Compártela con tus contactos para verificación Zero Trust.');
+            }
+        });
+    }
 
     initAppGuide();
 
