@@ -4,6 +4,8 @@
  * Digital Signature Challenge-Response Handshake, and Public Key Export/Import (JWK & SPKI Base64).
  */
 
+import elliptic from 'elliptic';
+
 const DB_NAME = 'pingo_crypto_vault';
 const DB_VERSION = 1;
 const STORE_NAME = 'keys';
@@ -11,6 +13,7 @@ const KEY_NAME = 'pingo_device_identity_key';
 
 let cachedKeyPair = null;
 let cachedPublicKeyB64 = null;
+const ec = new elliptic.ec('p256');
 
 /**
  * Open IndexedDB for storing non-extractable CryptoKeys
@@ -64,62 +67,119 @@ export function base64UrlToBuffer(b64) {
 }
 
 /**
- * Get or create the device-bound ECDSA keypair.
- * The private key is non-extractable (extractable: false) and bound to IndexedDB.
- * The public key is extractable so it can be shared with contacts.
+ * Derive deterministic ECDSA (P-256) CryptoKeyPair from a user secret passphrase + salt
+ * @param {string} phrase - User secret passphrase
+ * @param {string} salt - Security salt
+ * @returns {Promise<CryptoKeyPair>}
  */
-export async function getOrCreateDeviceKeyPair() {
-    if (cachedKeyPair) return cachedKeyPair;
+export async function deriveKeyPairFromPhrase(phrase, salt) {
+    if (!phrase) {
+        throw new Error('Frase secreta requerida para derivación criptográfica');
+    }
+
+    // 1. Derivar semilla de 256 bits mediante PBKDF2 (100.000 iteraciones SHA-256)
+    const encoder = new TextEncoder();
+    const phraseBuf = encoder.encode(phrase);
+    const saltBuf = encoder.encode((salt || '') + '_pingo_ecdsa_vault_v1');
+
+    const baseKey = await window.crypto.subtle.importKey(
+        'raw', phraseBuf, { name: 'PBKDF2' }, false, ['deriveBits']
+    );
+
+    const seedBits = await window.crypto.subtle.deriveBits(
+        { name: 'PBKDF2', salt: saltBuf, iterations: 100000, hash: 'SHA-256' },
+        baseKey,
+        256 // 32 bytes
+    );
+
+    const seedBytes = new Uint8Array(seedBits);
+
+    // 2. Multiplicar escalar sobre curva elíptica NIST P-256 para obtener punto público (X, Y)
+    const key = ec.keyFromPrivate(seedBytes);
+    const pubPoint = key.getPublic();
+
+    const xBytes = new Uint8Array(pubPoint.getX().toArray('be', 32));
+    const yBytes = new Uint8Array(pubPoint.getY().toArray('be', 32));
+
+    // 3. Construir JWKs para importar en WebCrypto
+    const jwkPrivate = {
+        kty: 'EC',
+        crv: 'P-256',
+        x: bufferToBase64Url(xBytes.buffer),
+        y: bufferToBase64Url(yBytes.buffer),
+        d: bufferToBase64Url(seedBytes.buffer),
+        ext: false // La clave privada se fija como NO extraíble en memoria
+    };
+
+    const jwkPublic = {
+        kty: 'EC',
+        crv: 'P-256',
+        x: bufferToBase64Url(xBytes.buffer),
+        y: bufferToBase64Url(yBytes.buffer),
+        ext: true // La clave pública es extraíble para poder compartirla
+    };
+
+    // 4. Importar en WebCrypto SubtleCrypto con las protecciones de seguridad activadas
+    const privateKey = await window.crypto.subtle.importKey(
+        'jwk',
+        jwkPrivate,
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        false, // extractable: false
+        ['sign']
+    );
+
+    const publicKey = await window.crypto.subtle.importKey(
+        'jwk',
+        jwkPublic,
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        true, // extractable: true
+        ['verify']
+    );
+
+    return { privateKey, publicKey };
+}
+
+/**
+ * Get or create the device-bound ECDSA keypair.
+ * If user has a passphrase configured, derives the key deterministically so
+ * changing phones restores the exact same cryptographic identity.
+ * The private key is non-extractable (extractable: false) and bound to IndexedDB.
+ */
+export async function getOrCreateDeviceKeyPair(customPhrase = null, customSalt = null) {
+    const phrase = customPhrase !== null ? customPhrase : (localStorage.getItem('pingo_passphrase') || '');
+    const salt = customSalt !== null ? customSalt : (localStorage.getItem('pingo_salt') || '');
+
+    // Clave de almacenamiento en IndexedDB ligada a la frase (o default)
+    const storageKey = phrase ? `pingo_key_${btoa(phrase.substring(0, 16))}` : KEY_NAME;
 
     const db = await openCryptoDB();
 
-    // 1. Try to load existing key pair
+    // 1. Try to load existing key pair from IndexedDB for this identity
     const existing = await new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readonly');
         const store = tx.objectStore(STORE_NAME);
-        const req = store.get(KEY_NAME);
+        const req = store.get(storageKey);
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
     });
 
     if (existing && existing.privateKey && existing.publicKey) {
         cachedKeyPair = existing;
+        cachedPublicKeyB64 = null;
         return cachedKeyPair;
     }
 
-    // 2. Generate a new ECDSA key pair (NIST P-256)
-    console.log('[ZeroTrust] Generando nuevo par de claves ECDSA P-256 anclado al dispositivo...');
-    const keyPair = await window.crypto.subtle.generateKey(
-        {
-            name: 'ECDSA',
-            namedCurve: 'P-256'
-        },
-        false, // extractable: FALSE para máxima seguridad (la clave privada NO puede ser exportada)
-        ['sign']
-    );
+    let storedPair;
 
-    // Como la clave pública sí debe poder exportarse para compartirla, generamos la clave pública como extractable
-    // En WebCrypto generateKey con extractable: false hace que ambas sean no extractables en algunos navegadores.
-    // Por estándar, para permitir exportar la pública y proteger la privada:
-    // Algunos navegadores marcan publicKey como extractable automáticamente si se permite, pero para garantizar
-    // portabilidad absoluta, si publicKey.extractable es false, podemos exportar la pública si el navegador lo permite
-    // o almacenar el raw exportado antes de fijarla si fuera extractable.
-    // Comprobamos si publicKey es exportable:
-    let pubExtractable = keyPair.publicKey.extractable;
-    let storedPair = {
-        privateKey: keyPair.privateKey,
-        publicKey: keyPair.publicKey
-    };
-
-    // Si el navegador bloqueó la pública también con extractable: false, generamos con extractable: true
-    // y solo persistimos la clave en IndexedDB (los atacantes web ordinarios siguen sin poder tocar el storage)
-    if (!pubExtractable) {
-        console.log('[ZeroTrust] Ajustando extractable para permitir exportación de clave pública...');
+    // 2. Si hay frase secreta, derivar de forma determinista para permitir cambio de móvil transparente
+    if (phrase) {
+        console.log('[ZeroTrust] 🔑 Derivando par de claves ECDSA P-256 determinista a partir de Frase Secreta...');
+        storedPair = await deriveKeyPairFromPhrase(phrase, salt);
+    } else {
+        // Generación aleatoria para identidades efímeras sin frase
+        console.log('[ZeroTrust] Generando par de claves ECDSA aleatorio anclado al dispositivo...');
         const extractablePair = await window.crypto.subtle.generateKey(
-            {
-                name: 'ECDSA',
-                namedCurve: 'P-256'
-            },
+            { name: 'ECDSA', namedCurve: 'P-256' },
             true,
             ['sign', 'verify']
         );
@@ -129,16 +189,17 @@ export async function getOrCreateDeviceKeyPair() {
         };
     }
 
-    // Persistir en IndexedDB
+    // 3. Persistir en IndexedDB
     await new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
-        const req = store.put(storedPair, KEY_NAME);
+        const req = store.put(storedPair, storageKey);
         req.onsuccess = () => resolve();
         req.onerror = () => reject(req.error);
     });
 
     cachedKeyPair = storedPair;
+    cachedPublicKeyB64 = null;
     return cachedKeyPair;
 }
 

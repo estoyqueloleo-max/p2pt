@@ -17,6 +17,7 @@
     "@huggingface/transformers": "^4.2.0",
     "@isomorphic-git/lightning-fs": "^4.6.2",
     "cordova-plugin-inappbrowser": "^6.0.0",
+    "elliptic": "^6.6.1",
     "isomorphic-git": "^1.37.5",
     "jsqr": "^1.4.0",
     "leaflet": "^1.9.4",

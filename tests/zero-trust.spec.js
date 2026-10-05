@@ -141,4 +141,79 @@ test.describe('Zero Trust Asymmetric Cryptography and Challenge-Response Flow', 
 
     console.log('[Test] Zero Trust Asymmetric Auth E2E test completed successfully!');
   });
+
+  test('Deterministic ECDSA key derivation restores exact identity on device migration', async ({ browser }) => {
+    // Escenario: Alice cambia de móvil/navegador.
+    // En su móvil antiguo (Context 1), configuró una frase secreta y un salt.
+    // Al configurar el mismo secreto en un móvil nuevo (Context 2 con storage limpio),
+    // el sistema debe derivar exactamente la misma clave pública y huella criptográfica.
+    const phrase = 'vuelo pingo secreto 2026';
+    const salt = 'salt_comunidad_v1';
+
+    // Dispositivo 1: Alice en su móvil antiguo
+    const context1 = await browser.newContext();
+    const page1 = await context1.newPage();
+    await page1.addInitScript(({ p, s }) => {
+      localStorage.setItem('pingo_user_id', 'alice-device-1');
+      localStorage.setItem('pingo_passphrase', p);
+      localStorage.setItem('pingo_salt', s);
+    }, { p: phrase, s: salt });
+
+    await page1.goto('/?localSignaling=1');
+    await page1.locator('#nav-network-btn').click();
+    await page1.locator('#toggle-identity-btn').click();
+    await expect(page1.locator('#identity-crypto-fingerprint')).toContainText('Huella:');
+
+    const fpDevice1 = await page1.locator('#identity-crypto-fingerprint').innerText();
+    const pkDevice1 = await page1.evaluate(async () => {
+      const cryptoMgr = await import('./src/js/crypto-manager.js');
+      return await cryptoMgr.exportMyPublicKey();
+    });
+
+    console.log(`[Device 1] Fingerprint: ${fpDevice1}`);
+    console.log(`[Device 1] Public Key: ${pkDevice1}`);
+
+    // Dispositivo 2: Alice en un móvil totalmente nuevo (almacenamiento limpio, nuevo contexto)
+    const context2 = await browser.newContext();
+    const page2 = await context2.newPage();
+    await page2.addInitScript(({ p, s }) => {
+      localStorage.setItem('pingo_user_id', 'alice-device-2');
+      localStorage.setItem('pingo_passphrase', p);
+      localStorage.setItem('pingo_salt', s);
+    }, { p: phrase, s: salt });
+
+    await page2.goto('/?localSignaling=1');
+    await page2.locator('#nav-network-btn').click();
+    await page2.locator('#toggle-identity-btn').click();
+    await expect(page2.locator('#identity-crypto-fingerprint')).toContainText('Huella:');
+
+    const fpDevice2 = await page2.locator('#identity-crypto-fingerprint').innerText();
+    const pkDevice2 = await page2.evaluate(async () => {
+      const cryptoMgr = await import('./src/js/crypto-manager.js');
+      return await cryptoMgr.exportMyPublicKey();
+    });
+
+    console.log(`[Device 2] Fingerprint: ${fpDevice2}`);
+    console.log(`[Device 2] Public Key: ${pkDevice2}`);
+
+    // Comprobación criptográfica estricta:
+    // Las claves públicas y las huellas digitales derivadas deben ser IDÉNTICAS bit por bit
+    expect(fpDevice1).toBe(fpDevice2);
+    expect(pkDevice1).toBe(pkDevice2);
+
+    // Además, verificar que una firma generada en el dispositivo 2 es verificable con la clave del dispositivo 1
+    const verificationResult = await page2.evaluate(async (pubKeyB64Device1) => {
+      const cryptoMgr = await import('./src/js/crypto-manager.js');
+      const challenge = 'test-challenge-migration-2026';
+      const signature = await cryptoMgr.signChallenge(challenge);
+      const peerKey = await cryptoMgr.importPeerPublicKey(pubKeyB64Device1);
+      return await cryptoMgr.verifyPeerChallenge(peerKey, challenge, signature);
+    }, pkDevice1);
+
+    expect(verificationResult).toBe(true);
+    console.log('[Test] Clave derivada con éxito en nuevo dispositivo y firma verificada bilateralmente.');
+
+    await context1.close();
+    await context2.close();
+  });
 });
