@@ -603,12 +603,26 @@ export async function commitSearchHistoryToGit(historyArray) {
 /**
  * Get all commits formatted for Gitgraph visualization, including remote pointers and sync status
  */
-export async function getAllCommitsGraph() {
+export async function getAllCommitsGraph(options = { showBlocked: false }) {
     try {
         await initGitRepo();
         
         // Obtenemos todos los commits locales
-        const commits = await git.log({ fs, dir: REPO_DIR });
+        let rawCommits = await git.log({ fs, dir: REPO_DIR });
+
+        // Mapear info de bloqueo a los commits
+        let commits = rawCommits.map(c => {
+            const author = c.commit?.author?.name || '';
+            const blocked = isAuthorBlocked(author);
+            return {
+                ...c,
+                isBlocked: blocked
+            };
+        });
+
+        if (!options.showBlocked) {
+            commits = commits.filter(c => !c.isBlocked);
+        }
         
         // Obtenemos las ramas locales
         const branches = await git.listBranches({ fs, dir: REPO_DIR });
@@ -667,13 +681,43 @@ export async function getAllCommitsGraph() {
  * Get file changes / details for a specific commit
  * @param {string} oid - SHA of the commit
  */
-export async function getCommitDetails(oid) {
+/**
+ * Gestor del Derecho al Olvido (Blocklist de Autores y Soft-delete de Commits)
+ */
+const BLOCKLIST_STORAGE_KEY = 'pingo_git_author_blocklist';
+
+export function getAuthorBlocklist() {
     try {
-        await initGitRepo();
-        const commit = await git.readCommit({ fs, dir: REPO_DIR, oid });
-        return commit;
-    } catch (err) {
-        console.error('[Git] Error reading commit:', err);
-        return null;
+        return JSON.parse(localStorage.getItem(BLOCKLIST_STORAGE_KEY) || '[]');
+    } catch (e) {
+        return [];
     }
 }
+
+export function isAuthorBlocked(authorName) {
+    if (!authorName) return false;
+    const list = getAuthorBlocklist();
+    const clean = authorName.trim().toLowerCase();
+    return list.some(item => item.toLowerCase() === clean);
+}
+
+export function blockAuthor(authorName) {
+    if (!authorName) return;
+    const clean = authorName.trim();
+    const list = getAuthorBlocklist();
+    if (!list.some(item => item.toLowerCase() === clean.toLowerCase())) {
+        list.push(clean);
+        localStorage.setItem(BLOCKLIST_STORAGE_KEY, JSON.stringify(list));
+        console.log(`[Git] 🛡️ Autor añadido a la lista de olvido (blocklist): "${clean}"`);
+    }
+}
+
+export function unblockAuthor(authorName) {
+    if (!authorName) return;
+    const clean = authorName.trim().toLowerCase();
+    let list = getAuthorBlocklist();
+    list = list.filter(item => item.toLowerCase() !== clean);
+    localStorage.setItem(BLOCKLIST_STORAGE_KEY, JSON.stringify(list));
+    console.log(`[Git] 🟢 Autor removido de la lista de olvido: "${authorName}"`);
+}
+

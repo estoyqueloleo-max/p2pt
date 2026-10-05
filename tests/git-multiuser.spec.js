@@ -227,7 +227,52 @@ test.describe('Multi-user P2P Git Traceability and Sync Flow', () => {
     const badgeText = await pageBob.locator('#gitgraph-sync-badge').innerText();
     console.log(`[Test] Bob Sync Badge: "${badgeText}"`);
 
+    // 10. Exercise the "Right to be Forgotten" (Derecho al Olvido / Soft-Delete)
+    console.log('[Test] Bob exercises Right to be Forgotten on Alice...');
+    // Bob clicks on Alice's badge in the Gitgraph legend to forget her
+    const aliceBadge = pageBob.locator('.gitgraph-author-badge[data-author="Alice"]');
+    await expect(aliceBadge).toBeVisible();
+    await aliceBadge.click();
+    await pageBob.waitForTimeout(500);
+
+    // Verify via UI: In Workspace, Alice's route is now hidden/filtered out by the blocklist
     await pageBob.locator('#gitgraph-close').click();
+    await pageBob.waitForSelector('#gitgraph-modal', { state: 'hidden' });
+
+    // Since Alice is forgotten, only Bob's note should be visible (count = 1)
+    await expect(pageBob.locator('.route-card')).toHaveCount(1, { timeout: 5000 });
+    console.log('[Test] Confirmed: Alice route is hidden from Workspace after applying right to be forgotten!');
+
+    // Reopen Gitgraph to verify that commits can be toggled with "Mostrar olvidados"
+    await pageBob.locator('#view-gitgraph-btn').click();
+    await pageBob.waitForSelector('#gitgraph-modal', { state: 'visible' });
+
+    const showBlockedCheckbox = pageBob.locator('#gitgraph-show-blocked');
+    await expect(showBlockedCheckbox).toBeVisible();
+
+    // Check with "Mostrar olvidados" checked
+    await showBlockedCheckbox.check();
+    await pageBob.waitForTimeout(500);
+
+    // Alice appears again in legend marked as Olvidad@
+    const legendWithBlocked = await pageBob.locator('#gitgraph-legend').innerText();
+    console.log('[Test] Legend with show blocked:', legendWithBlocked);
+    expect(legendWithBlocked).toContain('Alice');
+    expect(legendWithBlocked).toContain('Olvidad@');
+
+    // Click again on Alice's badge to unblock her
+    const aliceBlockedBadge = pageBob.locator('.gitgraph-author-badge[data-author="Alice"]');
+    await expect(aliceBlockedBadge).toBeVisible();
+    await aliceBlockedBadge.click();
+    await pageBob.waitForTimeout(500);
+
+    await pageBob.locator('#gitgraph-close').click();
+    await pageBob.waitForSelector('#gitgraph-modal', { state: 'hidden' });
+
+    // Both routes should be visible again in Workspace
+    await expect(pageBob.locator('.route-card')).toHaveCount(2, { timeout: 5000 });
+    console.log('[Test] Confirmed: Alice route restored successfully after unblocking!');
+
     console.log('[Test] Multi-user P2P Git E2E test completed successfully!');
   });
 });

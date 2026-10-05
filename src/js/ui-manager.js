@@ -16,7 +16,10 @@ import { saveGeofenceState, loadGeofenceState } from './geofence-manager.js';
 import { derivePeerId, getPeerColor, updateLocationStatus } from './utils.js';
 import { initPushNotifications, sendPushPing } from '../push-notifications.js';
 import { startRecording, stopRecording, saveRoute } from './route-manager.js';
-import { pushToRemote, pullFromRemote, loadRoutesFromGit, commitLinkFile, readRawFile, deleteGitRepo } from './git-manager.js';
+import { 
+    pushToRemote, pullFromRemote, loadRoutesFromGit, commitLinkFile, 
+    readRawFile, deleteGitRepo, blockAuthor, unblockAuthor, isAuthorBlocked, getAuthorBlocklist 
+} from './git-manager.js';
 import { renderRoute, clearRoute } from './map-manager.js';
 import { shareRouteP2P } from './sync-manager.js';
 import { 
@@ -252,12 +255,20 @@ export function renderRoutes() {
     if (!elements.routesContainer) return;
     elements.routesContainer.innerHTML = '';
 
-    if (state.routes.length === 0) {
-        elements.routesContainer.innerHTML = '<p class="small-hint" style="text-align: center; padding: 20px;">No hay rutas en tu repositorio Git.</p>';
+    const visibleRoutes = state.routes.filter(item => {
+        // Comprobar si el autor o remitente original está en la blocklist de olvido
+        const authorName = item.author || (item.forkedFrom ? (getAliasForPeer(item.forkedFrom) || item.forkedFrom) : null);
+        if (authorName && isAuthorBlocked(authorName)) return false;
+        if (item.forkedFrom && isAuthorBlocked(item.forkedFrom)) return false;
+        return true;
+    });
+
+    if (visibleRoutes.length === 0) {
+        elements.routesContainer.innerHTML = '<p class="small-hint" style="text-align: center; padding: 20px;">No hay rutas disponibles.</p>';
         return;
     }
 
-    state.routes.forEach(item => {
+    visibleRoutes.forEach(item => {
         const date = new Date(item.timestamp).toLocaleDateString();
         const isLink = item.type === 'link';
         const isNote = item.type === 'note';
@@ -1085,8 +1096,9 @@ export function setupEventListeners() {
         elements.gitgraphContainer.innerHTML = '<p style="padding: 20px; text-align: center; color: var(--text-dim);"><i class="fas fa-spinner fa-spin"></i> Cargando grafo de commits...</p>';
         if (elements.gitgraphDetails) elements.gitgraphDetails.style.display = 'none';
 
+        const showBlocked = elements.gitgraphShowBlocked ? elements.gitgraphShowBlocked.checked : false;
         const { getAllCommitsGraph, getCommitDetails } = await import('./git-manager.js');
-        const { commits, branchPointers, remoteHeadSha, currentBranch } = await getAllCommitsGraph();
+        const { commits, branchPointers, remoteHeadSha, currentBranch } = await getAllCommitsGraph({ showBlocked });
 
         // Actualizar Sync Badge según el estado con el appliance / remoto
         if (elements.gitgraphSyncBadge) {
@@ -1110,7 +1122,7 @@ export function setupEventListeners() {
         }
 
         if (!commits || commits.length === 0) {
-            elements.gitgraphContainer.innerHTML = '<p style="padding: 20px; text-align: center;">El repositorio está vacío.</p>';
+            elements.gitgraphContainer.innerHTML = '<p style="padding: 20px; text-align: center;">El repositorio está vacío (o todos los commits pertenecen a autores olvidados).</p>';
             if (elements.gitgraphLegend) elements.gitgraphLegend.innerHTML = '';
             return;
         }
@@ -1132,14 +1144,33 @@ export function setupEventListeners() {
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                     <span style="font-weight: 600;">Autores:</span>
-                    ${authors.map(a => `
-                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                    ${authors.map(a => {
+                        const blocked = isAuthorBlocked(a);
+                        return `
+                        <span class="gitgraph-author-badge" data-author="${a}" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05); cursor: pointer; ${blocked ? 'opacity: 0.6; text-decoration: line-through;' : ''}" title="${blocked ? 'Clic para restaurar autor' : 'Clic para olvidar autor (Derecho al Olvido)'}">
                             <span style="width: 8px; height: 8px; border-radius: 50%; background-color: ${authorColors[a]};"></span>
-                            <span>${a}</span>
+                            <span>${a}${blocked ? ' (Olvidad@)' : ''}</span>
+                            <i class="fas ${blocked ? 'fa-eye' : 'fa-user-slash'}" style="font-size: 0.65rem; margin-left: 2px; color: ${blocked ? '#4ade80' : '#ef4444'};"></i>
                         </span>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </div>
             `;
+
+            // Attach click listeners to legend badges
+            elements.gitgraphLegend.querySelectorAll('.gitgraph-author-badge').forEach(badge => {
+                badge.addEventListener('click', async (e) => {
+                    const targetAuthor = badge.dataset.author;
+                    if (!targetAuthor) return;
+                    if (isAuthorBlocked(targetAuthor)) {
+                        unblockAuthor(targetAuthor);
+                    } else {
+                        blockAuthor(targetAuthor);
+                    }
+                    renderRoutes();
+                    await renderGitgraphModal();
+                });
+            });
         }
 
         const darkTemplate = templateExtend(TemplateName.Metro, {
@@ -1173,13 +1204,11 @@ export function setupEventListeners() {
         const reversedCommits = [...commits].reverse();
         const mainBranch = gitgraph.branch(currentBranch || "main");
 
-        // Ramas virtuales por autor si hay bifurcación
-        const activeBranches = { [currentBranch || "main"]: mainBranch };
-
         reversedCommits.forEach(c => {
             const author = c.commit.author.name || 'Desconocido';
             const branches = branchPointers[c.oid] || [];
             const isRemoteHead = (c.oid === remoteHeadSha);
+            const isBlockedAuthor = isAuthorBlocked(author) || c.isBlocked;
             
             let tagStr = '';
             if (branches.length > 0) {
@@ -1187,8 +1216,11 @@ export function setupEventListeners() {
             } else if (isRemoteHead) {
                 tagStr = ' [origin/main]';
             }
+            if (isBlockedAuthor) {
+                tagStr += ' 🚫 [Olvidad@]';
+            }
 
-            const authorColor = authorColors[author] || '#6366f1';
+            const authorColor = isBlockedAuthor ? '#94a3b8' : (authorColors[author] || '#6366f1');
 
             const commitOptions = {
                 subject: (c.commit.message.split('\n')[0] || 'Commit') + tagStr,
@@ -1199,33 +1231,57 @@ export function setupEventListeners() {
                         color: authorColor
                     },
                     message: {
-                        color: "#f8fafc"
+                        color: isBlockedAuthor ? "#94a3b8" : "#f8fafc"
                     }
                 },
                 onClick: async (commitData) => {
                     if (!elements.gitgraphDetails) return;
                     elements.gitgraphDetails.style.display = 'block';
+                    const isCurBlocked = isAuthorBlocked(author);
                     elements.gitgraphDetails.innerHTML = `
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
                             <div>
                                 <strong style="color: #818cf8;">${commitData.hash}</strong> — 
                                 <span style="color: ${authorColor}; font-weight: 600;">${commitData.author ? commitData.author.name : author}</span>
+                                ${isCurBlocked ? '<span style="font-size: 0.75rem; color: #ef4444; margin-left: 6px;">(En lista de olvido)</span>' : ''}
                             </div>
                             <span style="color: var(--text-dim); font-size: 0.75rem;">
                                 ${new Date(c.commit.author.timestamp * 1000).toLocaleString()}
                             </span>
                         </div>
                         <div style="font-family: monospace; white-space: pre-wrap; color: #e2e8f0; margin-bottom: 6px;">${c.commit.message}</div>
-                        <div style="font-size: 0.75rem; color: #94a3b8;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: #94a3b8; flex-wrap: wrap; gap: 8px;">
                             <span>Padres: ${c.commit.parent && c.commit.parent.length > 0 ? c.commit.parent.map(p => p.substring(0, 7)).join(', ') : 'Raíz inicial'}</span>
+                            <button id="gitgraph-toggle-forget-btn" class="btn ${isCurBlocked ? 'btn-outline' : 'btn-danger'} btn-sm" style="font-size: 0.75rem; padding: 3px 8px;">
+                                <i class="fas ${isCurBlocked ? 'fa-eye' : 'fa-user-slash'}"></i> ${isCurBlocked ? 'Restaurar Autor' : 'Olvidar Autor (Derecho al Olvido)'}
+                            </button>
                         </div>
                     `;
+
+                    const toggleForgetBtn = document.getElementById('gitgraph-toggle-forget-btn');
+                    if (toggleForgetBtn) {
+                        toggleForgetBtn.addEventListener('click', async () => {
+                            if (isCurBlocked) {
+                                unblockAuthor(author);
+                            } else {
+                                blockAuthor(author);
+                            }
+                            renderRoutes();
+                            await renderGitgraphModal();
+                        });
+                    }
                 }
             };
 
             mainBranch.commit(commitOptions);
         });
     };
+
+    if (elements.gitgraphShowBlocked) {
+        elements.gitgraphShowBlocked.addEventListener('change', () => {
+            renderGitgraphModal();
+        });
+    }
 
     if (elements.viewGitgraphBtn) {
         elements.viewGitgraphBtn.addEventListener('click', renderGitgraphModal);

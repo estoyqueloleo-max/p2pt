@@ -209,6 +209,7 @@ export const elements = {
     get gitgraphPushBtn() { return getEl('gitgraph-push-btn'); },
     get gitgraphLegend() { return getEl('gitgraph-legend'); },
     get gitgraphDetails() { return getEl('gitgraph-details'); },
+    get gitgraphShowBlocked() { return getEl('gitgraph-show-blocked'); },
 
     // Server Configuration
     get openServerConfigBtn() { return getEl('open-server-config-btn'); },
