@@ -54,13 +54,17 @@ export async function commitRoute(routeId, routeData, message) {
         // Git Add
         await git.add({ fs, dir: REPO_DIR, filepath: filename });
         
+        // Determine author identity dynamically
+        const authorAlias = localStorage.getItem('pingo_alias') || localStorage.getItem('pingo_my_id') || 'Pingo User';
+        const authorEmail = localStorage.getItem('pingo_my_id') ? `${localStorage.getItem('pingo_my_id')}@pingo.local` : 'user@pingo.local';
+
         // Git Commit
         const sha = await git.commit({
             fs,
             dir: REPO_DIR,
             author: {
-                name: 'Pingo User',
-                email: 'user@pingo.local'
+                name: authorAlias,
+                email: authorEmail
             },
             message: message || `Update route: ${routeData.name || routeId}`
         });
@@ -88,10 +92,13 @@ export async function commitLinkFile(filename, content, visibility = 'private') 
         
         const message = `Update text file: ${filename}\n\nFile: ${filename}\nVisibility: ${visibility}`;
 
+        const authorAlias = localStorage.getItem('pingo_alias') || localStorage.getItem('pingo_my_id') || 'Pingo User';
+        const authorEmail = localStorage.getItem('pingo_my_id') ? `${localStorage.getItem('pingo_my_id')}@pingo.local` : 'user@pingo.local';
+
         const sha = await git.commit({
             fs,
             dir: REPO_DIR,
-            author: { name: 'Pingo User', email: 'user@pingo.local' },
+            author: { name: authorAlias, email: authorEmail },
             message: message
         });
         
@@ -541,29 +548,62 @@ export async function commitSearchHistoryToGit(historyArray) {
 }
 
 /**
- * Get all commits formatted for Gitgraph visualization
+ * Get all commits formatted for Gitgraph visualization, including remote pointers and sync status
  */
 export async function getAllCommitsGraph() {
     try {
         await initGitRepo();
         
-        // Obtenemos todos los commits
+        // Obtenemos todos los commits locales
         const commits = await git.log({ fs, dir: REPO_DIR });
         
-        // Obtenemos las ramas (branches) para saber dónde apuntan
+        // Obtenemos las ramas locales
         const branches = await git.listBranches({ fs, dir: REPO_DIR });
-        const branchPointers = {}; // commit_hash -> branch_name
+        const branchPointers = {}; // commit_hash -> [branch_names]
         
         for (const b of branches) {
-            const sha = await git.resolveRef({ fs, dir: REPO_DIR, ref: b });
-            branchPointers[sha] = b;
+            try {
+                const sha = await git.resolveRef({ fs, dir: REPO_DIR, ref: b });
+                if (!branchPointers[sha]) branchPointers[sha] = [];
+                branchPointers[sha].push(b);
+            } catch (e) {}
         }
 
-        // Devolvemos el array de commits con la info necesaria
-        // El log viene ordenado del más nuevo al más viejo
-        return { commits, branchPointers };
+        // Detectar si origin/main existe para mapear sincronización remota con el appliance
+        let remoteHeadSha = null;
+        try {
+            remoteHeadSha = await git.resolveRef({ fs, dir: REPO_DIR, ref: 'origin/main' });
+            if (remoteHeadSha) {
+                if (!branchPointers[remoteHeadSha]) branchPointers[remoteHeadSha] = [];
+                branchPointers[remoteHeadSha].push('origin/main');
+            }
+        } catch (e) {}
+
+        const currentBranch = await git.currentBranch({ fs, dir: REPO_DIR }).catch(() => 'main') || 'main';
+
+        return {
+            commits,
+            branchPointers,
+            remoteHeadSha,
+            currentBranch
+        };
     } catch (err) {
         console.error('[Git] Error getting all commits graph:', err);
-        return { commits: [], branchPointers: {} };
+        return { commits: [], branchPointers: {}, remoteHeadSha: null, currentBranch: 'main' };
+    }
+}
+
+/**
+ * Get file changes / details for a specific commit
+ * @param {string} oid - SHA of the commit
+ */
+export async function getCommitDetails(oid) {
+    try {
+        await initGitRepo();
+        const commit = await git.readCommit({ fs, dir: REPO_DIR, oid });
+        return commit;
+    } catch (err) {
+        console.error('[Git] Error reading commit:', err);
+        return null;
     }
 }

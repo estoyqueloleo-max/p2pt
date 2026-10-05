@@ -460,14 +460,28 @@
 <!-- Modal de Git Graph -->
 <div class="modal-overlay" id="gitgraph-modal" style="display: none;">
 <div class="modal-content" style="max-width: 95%; width: 800px; height: 85vh; display: flex; flex-direction: column;">
-<div class="modal-header">
+<div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+<div style="display: flex; align-items: center; gap: 8px;">
 <i class="fas fa-code-branch modal-icon"></i>
-<h3 id="gitgraph-title">Árbol de Commits</h3>
+<h3 id="gitgraph-title" style="margin: 0;">Árbol de Commits</h3>
+<span id="gitgraph-sync-badge" class="badge" style="background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.4); font-size: 0.75rem; padding: 2px 8px; border-radius: 12px;">Local</span>
 </div>
-<div class="modal-body" style="flex: 1; overflow-y: auto; overflow-x: auto; padding: 10px;">
-<div id="gitgraph-container" style="min-height: 100%; min-width: 100%;"></div>
+<div class="gitgraph-quick-actions" style="display: flex; gap: 6px;">
+<button class="btn btn-outline btn-sm" id="gitgraph-pull-btn" title="Descargar cambios del appliance / remoto" style="padding: 4px 10px; font-size: 0.8rem;">
+<i class="fas fa-cloud-download-alt"></i> Pull
+</button>
+<button class="btn btn-primary btn-sm" id="gitgraph-push-btn" title="Subir commits locales al appliance" style="padding: 4px 10px; font-size: 0.8rem;">
+<i class="fas fa-cloud-upload-alt"></i> Push
+</button>
 </div>
-<div class="modal-footer">
+</div>
+<div class="modal-body" style="flex: 1; overflow-y: auto; overflow-x: auto; padding: 12px; display: flex; flex-direction: column;">
+<div id="gitgraph-legend" style="display: flex; gap: 15px; font-size: 0.75rem; color: var(--text-dim); margin-bottom: 8px; flex-wrap: wrap;"></div>
+<div id="gitgraph-container" style="min-height: 250px; min-width: 100%; flex: 1;"></div>
+<div id="gitgraph-details" style="display: none; margin-top: 10px; padding: 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; font-size: 0.8rem;"></div>
+</div>
+<div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+<span id="gitgraph-footer-hint" style="font-size: 0.75rem; color: var(--text-dim);">Haz clic en un commit para inspeccionarlo</span>
 <button class="btn btn-primary" id="gitgraph-close">Cerrar</button>
 </div>
 </div>

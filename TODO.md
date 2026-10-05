@@ -30,6 +30,7 @@
 - [ ] **Alertas de Batería**: Enviar el nivel de batería restante junto con la ubicación.
 
 # 🌐 Infraestructura P2P Avanzada & Appliance de Red
+- [ ] **Gestión de la actualización de IPs de DuckDNS**: Automatizar y robustecer la detección y refresco dinámico de IPs (IPv4 pública y IPv6 global `AAAA`), control de cambios de red/IP, reintentos con backoff y sincronización con el relé TURN / señalización.
 - [ ] **Túnel Inverso Ligero para Señalización + SSL**: Integrar cliente de túnel saliente (Cloudflare Tunnel / BoringProxy) en `p2pt-server` para resolver CGNAT y certificados HTTPS/WSS sin abrir puertos (ver detalle en [P2P.md Sección 12](file:///home/jose/workspace/pingo/P2P.md#12-análisis-de-escenarios-críticos-cgnat-estricto-tráfico-de-medios-y-próximos-pasos-de-red)).
 - [ ] **Soporte Nativo IPv6 y DuckDNS (AAAA)**: Registrar IPv6 global de la RPi Zero y añadir validación de reglas de firewall *pinhole* en el dashboard.
 - [ ] **Clasificación RFC de Tipo de NAT en Go**: Implementar escáner en `p2pt-server` para detectar si la conexión es *Symmetric NAT* (bloqueo P2P) o *Full/Restricted Cone*.

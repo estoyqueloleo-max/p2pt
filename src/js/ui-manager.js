@@ -1072,65 +1072,164 @@ export function setupEventListeners() {
         });
     }
 
-    if (elements.viewGitgraphBtn) {
-        elements.viewGitgraphBtn.addEventListener('click', async () => {
-            if (elements.gitgraphModal) elements.gitgraphModal.style.display = 'flex';
-            if (elements.gitgraphContainer) {
-                elements.gitgraphContainer.innerHTML = '';
-                
-                const { getAllCommitsGraph } = await import('./git-manager.js');
-                const { commits, branchPointers } = await getAllCommitsGraph();
-                
-                if (!commits || commits.length === 0) {
-                    elements.gitgraphContainer.innerHTML = '<p style="padding: 20px; text-align: center;">El repositorio está vacío.</p>';
-                    return;
+    const renderGitgraphModal = async () => {
+        if (elements.gitgraphModal) elements.gitgraphModal.style.display = 'flex';
+        if (!elements.gitgraphContainer) return;
+
+        elements.gitgraphContainer.innerHTML = '<p style="padding: 20px; text-align: center; color: var(--text-dim);"><i class="fas fa-spinner fa-spin"></i> Cargando grafo de commits...</p>';
+        if (elements.gitgraphDetails) elements.gitgraphDetails.style.display = 'none';
+
+        const { getAllCommitsGraph, getCommitDetails } = await import('./git-manager.js');
+        const { commits, branchPointers, remoteHeadSha, currentBranch } = await getAllCommitsGraph();
+
+        // Actualizar Sync Badge según el estado con el appliance / remoto
+        if (elements.gitgraphSyncBadge) {
+            const localHead = commits[0]?.oid;
+            if (!remoteHeadSha) {
+                elements.gitgraphSyncBadge.textContent = 'Solo Local';
+                elements.gitgraphSyncBadge.style.background = 'rgba(148, 163, 184, 0.2)';
+                elements.gitgraphSyncBadge.style.color = '#94a3b8';
+                elements.gitgraphSyncBadge.style.borderColor = 'rgba(148, 163, 184, 0.4)';
+            } else if (localHead === remoteHeadSha) {
+                elements.gitgraphSyncBadge.textContent = 'Sincronizado con Appliance ✅';
+                elements.gitgraphSyncBadge.style.background = 'rgba(34, 197, 94, 0.2)';
+                elements.gitgraphSyncBadge.style.color = '#4ade80';
+                elements.gitgraphSyncBadge.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+            } else {
+                elements.gitgraphSyncBadge.textContent = 'Desincronizado ⚠️';
+                elements.gitgraphSyncBadge.style.background = 'rgba(245, 158, 11, 0.2)';
+                elements.gitgraphSyncBadge.style.color = '#fbbf24';
+                elements.gitgraphSyncBadge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+            }
+        }
+
+        if (!commits || commits.length === 0) {
+            elements.gitgraphContainer.innerHTML = '<p style="padding: 20px; text-align: center;">El repositorio está vacío.</p>';
+            if (elements.gitgraphLegend) elements.gitgraphLegend.innerHTML = '';
+            return;
+        }
+
+        elements.gitgraphContainer.innerHTML = '';
+
+        // Recolectar autores únicos para la leyenda y asignación de colores
+        const authors = Array.from(new Set(commits.map(c => c.commit.author.name || 'Desconocido')));
+        const palette = ["#6366f1", "#22c55e", "#f59e0b", "#ec4899", "#06b6d4", "#a855f7", "#f97316"];
+        const authorColors = {};
+        authors.forEach((auth, idx) => {
+            authorColors[auth] = palette[idx % palette.length];
+        });
+
+        if (elements.gitgraphLegend) {
+            elements.gitgraphLegend.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-weight: 600;">Rama:</span> <code>${currentBranch}</code>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span style="font-weight: 600;">Autores:</span>
+                    ${authors.map(a => `
+                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background-color: ${authorColors[a]};"></span>
+                            <span>${a}</span>
+                        </span>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        const darkTemplate = templateExtend(TemplateName.Metro, {
+            colors: palette,
+            commit: {
+                message: {
+                    displayAuthor: true,
+                    displayHash: true,
+                    color: "#f8fafc",
+                    font: "normal 11pt Outfit, sans-serif"
+                },
+                dot: {
+                    font: "normal 10pt Outfit, sans-serif"
                 }
-                
-                const darkTemplate = templateExtend(TemplateName.Metro, {
-                    colors: ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#a855f7", "#ec4899"],
-                    commit: {
-                        message: {
-                            displayAuthor: true,
-                            displayHash: true,
-                            color: "#f8fafc",
-                            font: "normal 12pt Outfit, sans-serif"
-                        },
-                        dot: {
-                            font: "normal 10pt Outfit, sans-serif"
-                        }
-                    },
-                    branch: {
-                        lineWidth: 4,
-                        label: {
-                            color: "#f8fafc",
-                            strokeColor: "#0f172a",
-                            font: "normal 10pt Outfit, sans-serif"
-                        }
-                    }
-                });
-                
-                const gitgraph = createGitgraph(elements.gitgraphContainer, {
-                    template: darkTemplate,
-                    orientation: "vertical-reverse"
-                });
-                
-                const reversedCommits = [...commits].reverse();
-                const mainBranch = gitgraph.branch("main");
-                
-                reversedCommits.forEach(c => {
-                    const branches = [];
-                    for (const sha in branchPointers) {
-                        if (sha === c.oid) branches.push(branchPointers[sha]);
-                    }
-                    
-                    const branchTags = branches.length > 0 ? ` (${branches.join(', ')})` : '';
-                    
-                    mainBranch.commit({
-                        subject: c.commit.message.split('\n')[0] + branchTags,
-                        author: c.commit.author.name || 'Desconocido',
-                        hash: c.oid.substring(0, 7)
-                    });
-                });
+            },
+            branch: {
+                lineWidth: 4,
+                label: {
+                    color: "#f8fafc",
+                    strokeColor: "#0f172a",
+                    font: "normal 9pt Outfit, sans-serif"
+                }
+            }
+        });
+
+        const gitgraph = createGitgraph(elements.gitgraphContainer, {
+            template: darkTemplate,
+            orientation: "vertical-reverse"
+        });
+
+        const reversedCommits = [...commits].reverse();
+        const mainBranch = gitgraph.branch(currentBranch || "main");
+
+        // Ramas virtuales por autor si hay bifurcación
+        const activeBranches = { [currentBranch || "main"]: mainBranch };
+
+        reversedCommits.forEach(c => {
+            const author = c.commit.author.name || 'Desconocido';
+            const branches = branchPointers[c.oid] || [];
+            const isRemoteHead = (c.oid === remoteHeadSha);
+            
+            let tagStr = '';
+            if (branches.length > 0) {
+                tagStr = ` [${branches.join(', ')}]`;
+            } else if (isRemoteHead) {
+                tagStr = ' [origin/main]';
+            }
+
+            const commitOptions = {
+                subject: (c.commit.message.split('\n')[0] || 'Commit') + tagStr,
+                author: author,
+                hash: c.oid.substring(0, 7),
+                onClick: async (commitData) => {
+                    if (!elements.gitgraphDetails) return;
+                    elements.gitgraphDetails.style.display = 'block';
+                    elements.gitgraphDetails.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                            <div>
+                                <strong style="color: #818cf8;">${commitData.hash}</strong> — 
+                                <span>${commitData.author ? commitData.author.name : author}</span>
+                            </div>
+                            <span style="color: var(--text-dim); font-size: 0.75rem;">
+                                ${new Date(c.commit.author.timestamp * 1000).toLocaleString()}
+                            </span>
+                        </div>
+                        <div style="font-family: monospace; white-space: pre-wrap; color: #e2e8f0; margin-bottom: 6px;">${c.commit.message}</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8;">
+                            <span>Padres: ${c.commit.parent && c.commit.parent.length > 0 ? c.commit.parent.map(p => p.substring(0, 7)).join(', ') : 'Raíz inicial'}</span>
+                        </div>
+                    `;
+                }
+            };
+
+            mainBranch.commit(commitOptions);
+        });
+    };
+
+    if (elements.viewGitgraphBtn) {
+        elements.viewGitgraphBtn.addEventListener('click', renderGitgraphModal);
+    }
+
+    // Botones rápidos de Push y Pull desde el propio visor del árbol de commits
+    if (elements.gitgraphPullBtn) {
+        elements.gitgraphPullBtn.addEventListener('click', async () => {
+            if (elements.gitPullBtn) {
+                elements.gitPullBtn.click();
+                setTimeout(() => renderGitgraphModal(), 1500);
+            }
+        });
+    }
+
+    if (elements.gitgraphPushBtn) {
+        elements.gitgraphPushBtn.addEventListener('click', async () => {
+            if (elements.gitPushBtn) {
+                elements.gitPushBtn.click();
+                setTimeout(() => renderGitgraphModal(), 1500);
             }
         });
     }

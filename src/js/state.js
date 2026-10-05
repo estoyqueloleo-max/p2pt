@@ -204,6 +204,11 @@ export const elements = {
     get gitgraphModal() { return getEl('gitgraph-modal'); },
     get gitgraphContainer() { return getEl('gitgraph-container'); },
     get gitgraphClose() { return getEl('gitgraph-close'); },
+    get gitgraphSyncBadge() { return getEl('gitgraph-sync-badge'); },
+    get gitgraphPullBtn() { return getEl('gitgraph-pull-btn'); },
+    get gitgraphPushBtn() { return getEl('gitgraph-push-btn'); },
+    get gitgraphLegend() { return getEl('gitgraph-legend'); },
+    get gitgraphDetails() { return getEl('gitgraph-details'); },
 
     // Server Configuration
     get openServerConfigBtn() { return getEl('open-server-config-btn'); },
