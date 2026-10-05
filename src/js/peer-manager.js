@@ -203,6 +203,8 @@ function processURLServerConfig() {
     }
 }
 
+let currentFallbackIndex = 0;
+
 export function initPeer(onOpen, onConnection, onError, onDisconnected) {
     processURLServerConfig();
     probeServerCapabilities();
@@ -217,7 +219,7 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
     const useLocalSignaling = urlParams.get('localSignaling') === '1' ||
                               localStorage.getItem('pingo_local_signaling') === '1';
 
-    let configToUse = getActivePeerConfig();
+    let configToUse = getActivePeerConfig(currentFallbackIndex > 0 ? currentFallbackIndex : null);
     if (useLocalSignaling) {
         console.log('[Peer] Overriding signaling configuration for local testing...');
         configToUse = {
@@ -301,10 +303,30 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
         });
     });
 
+    let fallbackFailoverScheduled = false;
+
     state.peer.on('error', (err) => {
         console.error('[Peer] Signaling Server Error:', err.type, '-', err.message);
-        if (err.type === 'network') {
-            updateLocationStatus('Error de red con el servidor', 'fa-wifi');
+        if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed') {
+            updateLocationStatus('Error de señalización. Evaluando conmutación (failover)...', 'fa-tower-cell');
+
+            // AUTO-FAILOVER: Si no estamos en modo local y falla la red con el servidor de señalización,
+            // conmutar automáticamente al siguiente servidor de la lista de fallbacks resilientes.
+            if (!useLocalSignaling && !fallbackFailoverScheduled) {
+                const srvConfig = getServerConfig();
+                const fallbacks = srvConfig.fallbacks || [];
+                if (fallbacks.length > 0) {
+                    fallbackFailoverScheduled = true;
+                    currentFallbackIndex = (currentFallbackIndex + 1) % fallbacks.length;
+                    const nextTarget = fallbacks[currentFallbackIndex];
+                    console.warn(`[Failover] 🔄 Conmutando a servidor de señalización alternativo (#${currentFallbackIndex}): ${nextTarget.host}:${nextTarget.port}`);
+                    updateLocationStatus(`Conmutando a servidor resiliente: ${nextTarget.host}`, 'fa-shield-halved');
+
+                    setTimeout(() => {
+                        reconnectPeer(onOpen, onConnection, onError, onDisconnected);
+                    }, 2000);
+                }
+            }
         } else if (err.type === 'peer-unavailable') {
             console.log('[Peer] Target peer not found (offline).');
         }

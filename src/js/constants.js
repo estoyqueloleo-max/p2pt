@@ -21,6 +21,12 @@ export const DEFAULT_STUN_SERVERS = [
     { urls: "stun:stun.schlund.de" }
 ];
 
+export const FALLBACK_SIGNALING_SERVERS = [
+    { host: 'peerjs-server.accreativos.com', port: 443, path: '/', secure: true },
+    { host: 'appliances.klitosan.com', port: 443, path: '/', secure: true },
+    { host: '0.peerjs.com', port: 443, path: '/', secure: true }
+];
+
 export const DEFAULT_SERVER_CONFIG = {
     signaling: {
         host: import.meta.env.VITE_PEER_HOST || 'peerjs-server.accreativos.com',
@@ -29,6 +35,7 @@ export const DEFAULT_SERVER_CONFIG = {
         secure: import.meta.env.VITE_PEER_SECURE !== undefined ? import.meta.env.VITE_PEER_SECURE === 'true' : true,
         key: 'peerjs'
     },
+    fallbacks: FALLBACK_SIGNALING_SERVERS,
     turn: {
         urls: [], // Custom TURN URLs if specified manually, e.g. ["turn:192.168.1.50:3478?transport=udp"]
         username: '',
@@ -57,6 +64,7 @@ export function getServerConfig() {
             const parsed = JSON.parse(stored);
             return {
                 signaling: { ...DEFAULT_SERVER_CONFIG.signaling, ...(parsed.signaling || {}) },
+                fallbacks: parsed.fallbacks && parsed.fallbacks.length > 0 ? parsed.fallbacks : DEFAULT_SERVER_CONFIG.fallbacks,
                 turn: { ...DEFAULT_SERVER_CONFIG.turn, ...(parsed.turn || {}) },
                 cloud: { ...DEFAULT_SERVER_CONFIG.cloud, ...(parsed.cloud || {}) },
                 broadcast: { ...DEFAULT_SERVER_CONFIG.broadcast, ...(parsed.broadcast || {}) },
@@ -104,7 +112,7 @@ export function resetServerConfig() {
     }
 }
 
-export function getActivePeerConfig() {
+export function getActivePeerConfig(fallbackIndex = null) {
     const config = getServerConfig();
     const isLocal = config.signaling.host === 'localhost' || config.signaling.host === '127.0.0.1';
 
@@ -118,11 +126,25 @@ export function getActivePeerConfig() {
         iceServers.push(turnEntry);
     }
 
+    let host = config.signaling.host;
+    let port = config.signaling.port;
+    let path = config.signaling.path;
+    let secure = config.signaling.secure;
+
+    // Si se especifica un fallbackIndex dentro de la lista de réplicas resilientes
+    if (fallbackIndex !== null && config.fallbacks && config.fallbacks[fallbackIndex]) {
+        const fb = config.fallbacks[fallbackIndex];
+        host = fb.host;
+        port = fb.port;
+        path = fb.path || '/';
+        secure = fb.secure !== undefined ? fb.secure : true;
+    }
+
     return {
-        host: config.signaling.host,
-        port: config.signaling.port,
-        path: config.signaling.path,
-        secure: config.signaling.secure,
+        host: host,
+        port: port,
+        path: path,
+        secure: secure,
         key: config.signaling.key || 'peerjs',
         config: {
             iceServers: iceServers
