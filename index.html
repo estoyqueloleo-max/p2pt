@@ -92,6 +92,29 @@
                     </button>
 </div>
 <input accept=".json" id="import-file-input" style="display: none;" type="file"/>
+
+<!-- Banner de Migración Zero Trust para Agendas Antiguas -->
+<div id="migration-banner" style="display: none; margin-bottom: 12px; padding: 10px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 8px; font-size: 0.8rem;">
+    <div style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
+        <i class="fas fa-shield-virus" style="color: #f59e0b; font-size: 1.1rem; margin-top: 2px;"></i>
+        <div>
+            <strong style="color: #fbbf24;">Migración Zero Trust Recomendada</strong>
+            <p style="margin: 3px 0 0; color: #e2e8f0; line-height: 1.35;">
+                Tienes contactos de versiones anteriores sin clave asimétrica. Se autentican por compatibilidad, pero puedes actualizarlos al estándar criptográfico.
+            </p>
+        </div>
+    </div>
+    <div style="background: rgba(0, 0, 0, 0.25); padding: 6px 8px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #38bdf8;">
+        <span style="color: #7dd3fc; font-weight: 600;"><i class="fas fa-key"></i> Sal de Seguridad y Recuperación:</span>
+        <p style="margin: 2px 0 0; color: #cbd5e1; font-size: 0.75rem; line-height: 1.3;">
+            Recuerda o anota bien tu <strong>Sal</strong> (Salt). Ahora es esencial para la <strong>recuperación de identidad</strong> si cambias de móvil, pero <strong>ya NO es necesario compartirla con nadie</strong> gracias al desafío de clave pública.
+        </p>
+    </div>
+    <button class="btn btn-warning btn-sm" id="migrate-agenda-btn" style="width: 100%; font-weight: 600;">
+        <i class="fas fa-arrow-trend-up"></i> Migrar Agenda a Criptografía Asimétrica
+    </button>
+</div>
+
 <div class="divider"><span>MIS PINGOS (AGENDA)</span></div>
 <!-- Formulario Inline para Añadir (Oculto por defecto) -->
 <div class="inline-form" id="add-contact-form" style="display: none;">

@@ -216,4 +216,82 @@ test.describe('Zero Trust Asymmetric Cryptography and Challenge-Response Flow', 
     await context1.close();
     await context2.close();
   });
+
+  test('Backwards compatibility with legacy agendas and interactive migration button with salt reminder', async ({ browser }) => {
+    // Escenario:
+    // 1. Un usuario (Alice) tiene una agenda antigua ("legacy") guardada en localStorage sin 'publicKey'
+    //    (solo con phrase y salt).
+    // 2. Al abrir Pingo, la conexión funciona por compatibilidad legacy.
+    // 3. El banner de advertencia de migración Zero Trust (#migration-banner) debe estar VISIBLE.
+    // 4. El banner recuerda expresamente la importancia de la 'Sal' para la recuperación de identidad
+    //    y que ya no es necesario compartirla.
+    // 5. Alice hace click en '#migrate-agenda-btn'.
+    // 6. El sistema actualiza todos los contactos heredados generando su publicKey y oculta el banner.
+
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    const legacyAgenda = [
+      {
+        alias: 'ContactoAntiguo',
+        phrase: 'frase-antigua-pingo-2025',
+        salt: 'sal_seguridad_legacy',
+        derivedId: '99887766'
+        // NOTA: sin campo 'publicKey'
+      }
+    ];
+
+    await page.addInitScript(({ agenda }) => {
+      localStorage.setItem('pingo_user_id', 'alice-migrator');
+      localStorage.setItem('pingo_passphrase', 'alice-pass-2026');
+      localStorage.setItem('pingo_salt', 'mi-sal-personal-42');
+      localStorage.setItem('pingo_agenda', JSON.stringify(agenda));
+    }, { agenda: legacyAgenda });
+
+    await page.goto('/?localSignaling=1');
+    await page.locator('#nav-network-btn').click();
+
+    // 1. Verificar que el banner de migración se muestra porque hay contactos sin publicKey
+    const banner = page.locator('#migration-banner');
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText('Migración Zero Trust Recomendada');
+    await expect(banner).toContainText('Sal de Seguridad y Recuperación');
+    await expect(banner).toContainText('ya NO es necesario compartirla');
+
+    // 2 & 3. Interceptar el diálogo alert que informa del resultado de la migración y recuerda el Salt
+    const dialogPromise = page.waitForEvent('dialog');
+    const migrateBtn = page.locator('#migrate-agenda-btn');
+    await expect(migrateBtn).toBeVisible();
+    await migrateBtn.click();
+
+    const dialog = await dialogPromise;
+    const dialogMessage = dialog.message();
+    console.log(`[Test] Migration Dialog intercepted: "${dialogMessage.substring(0, 100)}..."`);
+    await dialog.accept();
+
+    // 4. Validar el mensaje de alerta (debe incluir el aviso sobre la Sal y recuperación)
+    expect(dialogMessage).toContain('Migración de Agenda Completada');
+    expect(dialogMessage).toContain('mi-sal-personal-42');
+    expect(dialogMessage).toContain('RECORDATORIO DE RECUPERACIÓN');
+
+    // 5. Una vez migrada la agenda, el banner debe ocultarse automáticamente
+    await expect(banner).toBeHidden();
+
+    // 6. Validar que la agenda en localStorage ahora posee la publicKey calculada
+    const updatedAgenda = await page.evaluate(() => {
+      return JSON.parse(localStorage.getItem('pingo_agenda') || '[]');
+    });
+
+    expect(updatedAgenda.length).toBe(1);
+    expect(updatedAgenda[0].publicKey).toBeTruthy();
+    expect(typeof updatedAgenda[0].publicKey).toBe('string');
+    expect(updatedAgenda[0].publicKey.length).toBeGreaterThan(40);
+    console.log(`[Test] Contacto migrado con clave pública: ${updatedAgenda[0].publicKey.substring(0, 30)}...`);
+
+    // 7. En la tarjeta de contacto debe aparecer el escudo de verificación Zero Trust
+    const card = page.locator('.contact-card:has-text("ContactoAntiguo")');
+    await expect(card.locator('.fa-shield-alt')).toBeVisible();
+
+    await context.close();
+  });
 });

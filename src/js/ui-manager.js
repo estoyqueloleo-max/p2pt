@@ -95,6 +95,12 @@ export function renderAgenda() {
     }
 
     if (elements.emptyAgendaHint) elements.emptyAgendaHint.style.display = 'none';
+
+    // Banner de Migración Zero Trust para contactos heredados (sin publicKey)
+    const hasLegacyContacts = state.agenda.some(c => !c.publicKey);
+    if (elements.migrationBanner) {
+        elements.migrationBanner.style.display = hasLegacyContacts ? 'block' : 'none';
+    }
     
     state.agenda.forEach((contact, index) => {
         const id = String(contact.derivedId);
@@ -1412,6 +1418,43 @@ export function setupEventListeners() {
             reader.readAsText(file);
             // Reset input so the same file can be selected again
             e.target.value = '';
+        });
+    }
+
+    if (elements.migrateAgendaBtn) {
+        elements.migrateAgendaBtn.addEventListener('click', async () => {
+            const { deriveKeyPairFromPhrase, exportMyPublicKey } = await import('./crypto-manager.js');
+            let upgradedCount = 0;
+
+            for (const contact of state.agenda) {
+                // Si el contacto tiene frase pero no tiene clave pública (agenda previa)
+                if (contact.phrase && !contact.publicKey) {
+                    try {
+                        const derivedPair = await deriveKeyPairFromPhrase(contact.phrase, contact.salt || '');
+                        const spki = await window.crypto.subtle.exportKey('spki', derivedPair.publicKey);
+                        const { bufferToBase64Url } = await import('./crypto-manager.js');
+                        contact.publicKey = bufferToBase64Url(spki);
+                        upgradedCount++;
+                    } catch (e) {
+                        console.warn(`[Migration] No se pudo derivar clave para ${contact.alias}:`, e);
+                    }
+                }
+            }
+
+            saveAgenda();
+            renderAgenda();
+
+            const mySalt = localStorage.getItem('pingo_salt') || '';
+            const saltMsg = mySalt 
+                ? `Tu Sal actual es: "${mySalt}".` 
+                : 'No tienes una Sal configurada (puedes añadirla en Gestionar Identidad).';
+
+            alert(`✅ ¡Migración de Agenda Completada!\n\n` +
+                  `Se han actualizado ${upgradedCount} contactos con Criptografía Asimétrica (Zero Trust).\n\n` +
+                  `⚠️ RECORDATORIO DE RECUPERACIÓN:\n` +
+                  `${saltMsg}\n\n` +
+                  `Recuerda guardar bien esta Sal junto a tu frase secreta para recuperar tu identidad si cambias de móvil. ` +
+                  `A partir de ahora, ya NO es necesario compartir la Sal con tus contactos gracias al intercambio seguro de claves públicas.`);
         });
     }
 
