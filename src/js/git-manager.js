@@ -40,7 +40,7 @@ export async function initGitRepo() {
  * @param {object} routeData 
  * @param {string} message 
  */
-export async function commitRoute(routeId, routeData, message) {
+export async function commitRoute(routeId, routeData, message, customAuthor = null) {
     const filename = `${routeId}.json`;
     const filepath = `${REPO_DIR}/${filename}`;
     
@@ -55,8 +55,8 @@ export async function commitRoute(routeId, routeData, message) {
         await git.add({ fs, dir: REPO_DIR, filepath: filename });
         
         // Determine author identity dynamically
-        const authorAlias = localStorage.getItem('pingo_alias') || localStorage.getItem('pingo_my_id') || 'Pingo User';
-        const authorEmail = localStorage.getItem('pingo_my_id') ? `${localStorage.getItem('pingo_my_id')}@pingo.local` : 'user@pingo.local';
+        const authorAlias = customAuthor?.name || localStorage.getItem('pingo_alias') || localStorage.getItem('pingo_my_id') || 'Pingo User';
+        const authorEmail = customAuthor?.email || (localStorage.getItem('pingo_my_id') ? `${localStorage.getItem('pingo_my_id')}@pingo.local` : 'user@pingo.local');
 
         // Git Commit
         const sha = await git.commit({
@@ -218,6 +218,29 @@ export async function pushToRemote(remoteUrl, username, token) {
         });
 
         console.log('[Git] Push successful:', result);
+
+        // Update local tracking reference for origin/branch so Git knows it is in sync
+        try {
+            const localSha = await git.resolveRef({ fs, dir: REPO_DIR, ref: branch });
+            localStorage.setItem('pingo_git_remote_head', localSha);
+            await git.writeRef({
+                fs,
+                dir: REPO_DIR,
+                ref: `refs/remotes/origin/${branch}`,
+                value: localSha,
+                force: true
+            });
+            await git.writeRef({
+                fs,
+                dir: REPO_DIR,
+                ref: `origin/${branch}`,
+                value: localSha,
+                force: true
+            });
+        } catch (refErr) {
+            console.warn('[Git] Could not update remote tracking ref:', refErr);
+        }
+
         return result;
     } catch (err) {
         if (err.name === 'PushRejectedError') {
@@ -343,7 +366,14 @@ export async function forceSyncWithRemote(type, remoteUrl, username, token) {
 
     if (type === 'local') {
         console.warn('[Git] Forcing LOCAL version to remote...');
-        return await git.push({
+        try {
+            await git.addRemote({ fs, dir: REPO_DIR, remote: 'origin', url: proxiedUrl });
+        } catch (e) {
+            await git.deleteRemote({ fs, dir: REPO_DIR, remote: 'origin' });
+            await git.addRemote({ fs, dir: REPO_DIR, remote: 'origin', url: proxiedUrl });
+        }
+
+        const result = await git.push({
             fs,
             http,
             dir: REPO_DIR,
@@ -352,6 +382,29 @@ export async function forceSyncWithRemote(type, remoteUrl, username, token) {
             force: true,
             onAuth: () => ({ username, password: token })
         });
+
+        try {
+            const localSha = await git.resolveRef({ fs, dir: REPO_DIR, ref: branch });
+            localStorage.setItem('pingo_git_remote_head', localSha);
+            await git.writeRef({
+                fs,
+                dir: REPO_DIR,
+                ref: `refs/remotes/origin/${branch}`,
+                value: localSha,
+                force: true
+            });
+            await git.writeRef({
+                fs,
+                dir: REPO_DIR,
+                ref: `origin/${branch}`,
+                value: localSha,
+                force: true
+            });
+        } catch (refErr) {
+            console.warn('[Git] Could not update remote tracking ref on force push:', refErr);
+        }
+
+        return result;
     }
 
     if (type === 'remote') {
@@ -569,17 +622,34 @@ export async function getAllCommitsGraph() {
             } catch (e) {}
         }
 
+        const currentBranch = await git.currentBranch({ fs, dir: REPO_DIR }).catch(() => 'main') || 'main';
+
         // Detectar si origin/main existe para mapear sincronización remota con el appliance
         let remoteHeadSha = null;
-        try {
-            remoteHeadSha = await git.resolveRef({ fs, dir: REPO_DIR, ref: 'origin/main' });
-            if (remoteHeadSha) {
-                if (!branchPointers[remoteHeadSha]) branchPointers[remoteHeadSha] = [];
-                branchPointers[remoteHeadSha].push('origin/main');
-            }
-        } catch (e) {}
+        for (const candidateRef of [`origin/${currentBranch}`, 'origin/main', `refs/remotes/origin/${currentBranch}`, 'refs/remotes/origin/main']) {
+            try {
+                remoteHeadSha = await git.resolveRef({ fs, dir: REPO_DIR, ref: candidateRef });
+                if (remoteHeadSha) {
+                    if (!branchPointers[remoteHeadSha]) branchPointers[remoteHeadSha] = [];
+                    if (!branchPointers[remoteHeadSha].includes('origin/main')) {
+                        branchPointers[remoteHeadSha].push('origin/main');
+                    }
+                    break;
+                }
+            } catch (e) {}
+        }
 
-        const currentBranch = await git.currentBranch({ fs, dir: REPO_DIR }).catch(() => 'main') || 'main';
+        // Si no se resolvió por ref en fs, comprobar si tenemos guardado el SHA de la última subida
+        if (!remoteHeadSha) {
+            const savedRemoteHead = localStorage.getItem('pingo_git_remote_head');
+            if (savedRemoteHead) {
+                remoteHeadSha = savedRemoteHead;
+                if (!branchPointers[remoteHeadSha]) branchPointers[remoteHeadSha] = [];
+                if (!branchPointers[remoteHeadSha].includes('origin/main')) {
+                    branchPointers[remoteHeadSha].push('origin/main');
+                }
+            }
+        }
 
         return {
             commits,

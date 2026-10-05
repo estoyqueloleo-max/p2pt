@@ -339,13 +339,14 @@ export function renderRoutes() {
     });
 
     elements.routesContainer.querySelectorAll('.share-route').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             const routeId = btn.dataset.id;
             const connectedIds = Object.keys(state.connections).filter(id => state.connections[id].open);
 
             if (state.activeChatPeerId && state.connections[state.activeChatPeerId]?.open) {
                 const alias = getAliasForPeer(state.activeChatPeerId);
-                if (confirm(`¿Compartir ruta con ${alias}?`)) {
+                const confirmed = await showConfirmModal('Compartir Ruta', `¿Compartir ruta con ${alias}?`);
+                if (confirmed) {
                     shareRouteP2P(routeId, state.activeChatPeerId);
                 }
                 return;
@@ -359,7 +360,8 @@ export function renderRoutes() {
             if (connectedIds.length === 1) {
                 const id = connectedIds[0];
                 const alias = getAliasForPeer(id);
-                if (confirm(`¿Enviar a ${alias}?`)) {
+                const confirmed = await showConfirmModal('Compartir Ruta', `¿Enviar a ${alias}?`);
+                if (confirmed) {
                     shareRouteP2P(routeId, id);
                 }
             } else {
@@ -982,8 +984,12 @@ export function setupEventListeners() {
                         try {
                             elements.gitPushBtn.innerHTML = '<i class="fas fa-bolt fa-spin"></i> Forzando...';
                             await import('./git-manager.js').then(m => m.forceSyncWithRemote('local', url, user, token));
+                            localStorage.setItem('git_remote', JSON.stringify({ url, user, token }));
+                            localStorage.setItem('pingo_git_remote', JSON.stringify({ url, user, token }));
+                            updateLocationStatus('Sincronización (Forzada) completada ✅', 'fa-cloud-arrow-up');
                             alert('Servidor actualizado a la fuerza con tus cambios locales.');
                         } catch (forceErr) {
+                            console.error('[UI] Force push failed with error:', forceErr);
                             alert(`Fallo al forzar: ${forceErr.message}`);
                         }
                     }
@@ -1182,10 +1188,20 @@ export function setupEventListeners() {
                 tagStr = ' [origin/main]';
             }
 
+            const authorColor = authorColors[author] || '#6366f1';
+
             const commitOptions = {
                 subject: (c.commit.message.split('\n')[0] || 'Commit') + tagStr,
                 author: author,
                 hash: c.oid.substring(0, 7),
+                style: {
+                    dot: {
+                        color: authorColor
+                    },
+                    message: {
+                        color: "#f8fafc"
+                    }
+                },
                 onClick: async (commitData) => {
                     if (!elements.gitgraphDetails) return;
                     elements.gitgraphDetails.style.display = 'block';
@@ -1193,7 +1209,7 @@ export function setupEventListeners() {
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
                             <div>
                                 <strong style="color: #818cf8;">${commitData.hash}</strong> — 
-                                <span>${commitData.author ? commitData.author.name : author}</span>
+                                <span style="color: ${authorColor}; font-weight: 600;">${commitData.author ? commitData.author.name : author}</span>
                             </div>
                             <span style="color: var(--text-dim); font-size: 0.75rem;">
                                 ${new Date(c.commit.author.timestamp * 1000).toLocaleString()}

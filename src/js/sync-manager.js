@@ -71,8 +71,13 @@ export async function handleIncomingRoute(peerId, data) {
                 importedAt: Date.now()
             };
             
-            // Commit the received route to local Git
-            await commitRoute(newRouteData.id, newRouteData, `Imported from ${senderAlias} (${sharedBy})`);
+            // Commit the received route to local Git attributing original creator/sender
+            await commitRoute(
+                newRouteData.id,
+                newRouteData,
+                `Imported from ${senderAlias} (${sharedBy})`,
+                { name: senderAlias, email: `${sharedBy}@pingo.local` }
+            );
             
             // Update local state so it appears in the list without full reload
             if (!state.routes.find(r => r.id === newRouteData.id)) {
