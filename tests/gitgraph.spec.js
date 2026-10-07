@@ -97,7 +97,7 @@ test.describe('Gitgraph E2E Flow', () => {
         await page.waitForSelector('#workspace-editor', { state: 'visible' });
 
         // Configure remote appliance Git repository
-        await page.fill('#git-remote-url', 'https://pingo-casa.duckdns.org/git/pingo/routes.git');
+        await page.fill('#git-remote-url', 'https://salon.appliances.klitosan.com/git/pingo/routes.git');
         await page.fill('#git-username', 'pingo');
         await page.fill('#git-token', 'pingosecret');
 

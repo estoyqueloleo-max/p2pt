@@ -26,10 +26,10 @@ Este documento establece las directrices de trabajo obligatorias para cualquier 
 
 ## 3. 🍓 Integración con el Appliance (QEMU / Docker)
 
-* El appliance corre localmente en la IP `192.168.1.50` (o a través de su dominio configurado `pingo-casa.duckdns.org` con terminación TLS en Apache `.3`).
+* El appliance corre localmente en la IP `192.168.1.50` y está expuesto públicamente a través de su dominio Cloud Hub `salon.appliances.klitosan.com` (con terminación TLS Let's Encrypt en Apache `.3`, y fallback `pingo-casa.duckdns.org`).
 * El appliance expone:
-  * **Git Smart HTTP**: `http://192.168.1.50:443/git/:user/:repo.git` (o vía HTTPS público).
+  * **Git Smart HTTP**: `https://salon.appliances.klitosan.com/git/:user/:repo.git` (o local `http://192.168.1.50:443/git/:user/:repo.git`).
   * **GoToSocial (ActivityPub/Mastodon)**: en `/api/v1/`, `/oauth/`, `/auth/sign_in`, etc.
   * **TURN / STUN**: en puerto `3478`.
   * **Signaling / WebSockets**: en puerto `443`.
-* Los tests de sincronización remota de Git pueden utilizar este servidor como endpoint real cuando se requiera prueba de integración completa.
+* Los tests de sincronización remota de Git (`tests/gitgraph.spec.js` y `tests/git-multiuser.spec.js`) utilizan este servidor como endpoint real para validar la integración completa.

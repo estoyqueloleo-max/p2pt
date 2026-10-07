@@ -208,7 +208,7 @@ test.describe('Multi-user P2P Git Traceability and Sync Flow', () => {
     await pageBob.locator('#gitgraph-close').click();
     await pageBob.waitForSelector('#gitgraph-modal', { state: 'hidden' });
 
-    await pageBob.locator('#git-remote-url').fill('https://pingo-casa.duckdns.org/git/pingo/routes.git');
+    await pageBob.locator('#git-remote-url').fill('https://salon.appliances.klitosan.com/git/pingo/routes.git');
     await pageBob.locator('#git-username').fill('pingo');
     await pageBob.locator('#git-token').fill('pingosecret');
 
