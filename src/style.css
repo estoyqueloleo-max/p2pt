@@ -524,20 +524,24 @@ input:-webkit-autofill:focus {
     flex-direction: column;
     gap: 8px;
     min-height: 40px;
+    flex-shrink: 0;
 }
 
 .contact-card {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px;
+    flex-wrap: nowrap;
+    gap: 10px;
+    padding: 10px 12px;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 8px;
     border-left: 3px solid var(--primary);
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
-    overflow-x: hidden;
+    flex-shrink: 0;
+    min-height: 52px;
 }
 
 .contact-status-dot {
@@ -550,6 +554,7 @@ input:-webkit-autofill:focus {
     opacity: 0.5;
     cursor: pointer;
     transition: transform 0.2s;
+    flex-shrink: 0;
 }
 
 .contact-status-dot:hover {
@@ -569,15 +574,22 @@ input:-webkit-autofill:focus {
 }
 
 .contact-info {
-    flex: 1;
+    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
+}
+
+.contact-main {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
 }
 
 .contact-name {
     font-weight: 600;
     font-size: 0.9rem;
-    display: block;
+    display: inline-block;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -586,6 +598,8 @@ input:-webkit-autofill:focus {
 .contact-id-hint {
     font-size: 0.7rem;
     color: var(--text-dim);
+    display: block;
+    margin-top: 2px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -593,8 +607,27 @@ input:-webkit-autofill:focus {
 
 .contact-actions {
     display: flex;
+    align-items: center;
     gap: 5px;
+    flex-wrap: nowrap;
     flex-shrink: 0;
+}
+
+.contact-actions .btn,
+.contact-actions .btn-sm {
+    margin-top: 0 !important;
+    padding: 0 !important;
+    font-size: 0.85rem;
+    width: 32px !important;
+    min-width: 32px !important;
+    max-width: 32px !important;
+    height: 32px !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    flex-shrink: 0;
+    box-sizing: border-box;
 }
 
 /* Inline Form */

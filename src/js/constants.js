@@ -22,14 +22,15 @@ export const DEFAULT_STUN_SERVERS = [
 ];
 
 export const FALLBACK_SIGNALING_SERVERS = [
+    { host: 'pingo.appliances.klitosan.com', port: 443, path: '/', secure: true },
+    { host: 'salon.appliances.klitosan.com', port: 443, path: '/', secure: true },
     { host: 'peerjs-server.accreativos.com', port: 443, path: '/', secure: true },
-    { host: 'appliances.klitosan.com', port: 443, path: '/', secure: true },
     { host: '0.peerjs.com', port: 443, path: '/', secure: true }
 ];
 
 export const DEFAULT_SERVER_CONFIG = {
     signaling: {
-        host: import.meta.env.VITE_PEER_HOST || 'peerjs-server.accreativos.com',
+        host: import.meta.env.VITE_PEER_HOST || 'pingo.appliances.klitosan.com',
         port: import.meta.env.VITE_PEER_PORT ? parseInt(import.meta.env.VITE_PEER_PORT, 10) : 443,
         path: import.meta.env.VITE_PEER_PATH || '/',
         secure: import.meta.env.VITE_PEER_SECURE !== undefined ? import.meta.env.VITE_PEER_SECURE === 'true' : true,
