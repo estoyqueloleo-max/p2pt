@@ -1,0 +1,27 @@
+services:
+  pingo-appliance:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: pingo-cloud-appliance
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+    environment:
+      - PORT=443
+      - TURN_PORT=3478
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123456}
+      - DDNS_APPLIANCE_ID=${DDNS_APPLIANCE_ID:-}
+      - DDNS_SECRET_TOKEN=${DDNS_SECRET_TOKEN:-}
+      - DDNS_HUB_ENDPOINT=${DDNS_HUB_ENDPOINT:-https://appliances.klitosan.com}
+      - ENABLE_GIT=true
+      - GIT_DIR=/var/lib/p2pt/repos
+      - ENABLE_UPNP=false
+      - ENABLE_MDNS=false
+    volumes:
+      - pingo-data:/var/lib/p2pt
+
+volumes:
+  pingo-data:
