@@ -1,5 +1,0 @@
-dist/
-*.env
-*.env.*
-pingo-server
-p2pt-server
