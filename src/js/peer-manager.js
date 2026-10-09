@@ -169,7 +169,14 @@ function processURLServerConfig() {
                 const current = getServerConfig();
                 if (parsed.signaling) current.signaling = { ...current.signaling, ...parsed.signaling };
                 if (parsed.turn) current.turn = { ...current.turn, ...parsed.turn };
-                if (parsed.cloud) current.cloud = { ...current.cloud, ...parsed.cloud };
+                if (parsed.cloud) {
+                    current.cloud = {
+                        ...current.cloud,
+                        ...parsed.cloud,
+                        apiEndpoint: parsed.cloud.apiEndpoint || parsed.cloud.api_endpoint || current.cloud.apiEndpoint,
+                        turnCredentialsPath: parsed.cloud.turnCredentialsPath || parsed.cloud.turn_credentials_path || current.cloud.turnCredentialsPath
+                    };
+                }
                 if (parsed.broadcast) {
                     current.broadcast = {
                         enabled: Boolean(parsed.broadcast.enabled),

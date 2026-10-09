@@ -1334,10 +1334,16 @@ export function setupEventListeners() {
 
     if (elements.exportBackupBtn) {
         elements.exportBackupBtn.addEventListener('click', () => {
+            const savedGit = JSON.parse(localStorage.getItem('git_remote') || localStorage.getItem('pingo_git_remote') || 'null');
+            const savedMastodon = JSON.parse(localStorage.getItem('pingo_mastodon_config') || 'null');
             const backupData = {
                 version: VERSION,
                 agenda: state.agenda,
                 myIdentity: state.myIdentity,
+                serverConfig: getServerConfig(),
+                gitRemote: savedGit,
+                mastodonConfig: savedMastodon,
+                useCloudServices: state.useCloudServices,
                 timestamp: new Date().toISOString()
             };
             const jsonContent = JSON.stringify(backupData, null, 2);
@@ -1378,7 +1384,7 @@ export function setupEventListeners() {
             reader.onload = async (event) => {
                 try {
                     const data = JSON.parse(event.target.result);
-                    if (!data.agenda && !data.myIdentity) {
+                    if (!data.agenda && !data.myIdentity && !data.serverConfig) {
                         throw new Error('Formato de archivo inválido');
                     }
 
@@ -1386,6 +1392,31 @@ export function setupEventListeners() {
                         state.agenda = data.agenda;
                         saveAgenda();
                         renderAgenda();
+                    }
+
+                    if (data.serverConfig) {
+                        saveServerConfig(data.serverConfig);
+                        populateServerConfigUI();
+                    }
+
+                    if (data.gitRemote) {
+                        localStorage.setItem('git_remote', JSON.stringify(data.gitRemote));
+                        localStorage.setItem('pingo_git_remote', JSON.stringify(data.gitRemote));
+                        if (elements.gitRemoteUrl) elements.gitRemoteUrl.value = data.gitRemote.url || '';
+                        if (elements.gitUsername) elements.gitUsername.value = data.gitRemote.user || '';
+                        if (elements.gitToken) elements.gitToken.value = data.gitRemote.token || '';
+                    }
+
+                    if (data.mastodonConfig) {
+                        saveMastodonConfig(data.mastodonConfig);
+                    }
+
+                    if (data.useCloudServices !== undefined) {
+                        state.useCloudServices = Boolean(data.useCloudServices);
+                        localStorage.setItem('pingo_use_cloud', state.useCloudServices);
+                        if (elements.cloudServicesToggle) {
+                            elements.cloudServicesToggle.checked = state.useCloudServices;
+                        }
                     }
 
                     if (data.myIdentity) {
@@ -1409,7 +1440,8 @@ export function setupEventListeners() {
                     }
 
                     updateLocationStatus('Respaldo importado con éxito ✅', 'fa-check-circle');
-                    alert('Agenda restaurada.');
+                    alert('Copia de seguridad restaurada correctamente.');
+                    setTimeout(() => window.location.reload(), 1500);
                 } catch (err) {
                     console.error('Error al importar:', err);
                     alert('Error al importar el archivo. Asegúrate de que es un JSON válido de Pingo.');
@@ -1619,8 +1651,9 @@ export function setupEventListeners() {
             if (parsed.turn.credential && elements.serverTurnPass) elements.serverTurnPass.value = parsed.turn.credential;
         }
 
-        if (parsed.cloud && parsed.cloud.apiEndpoint && elements.serverCloudApi) {
-            elements.serverCloudApi.value = parsed.cloud.apiEndpoint;
+        const cloudEndpoint = parsed.cloud?.apiEndpoint || parsed.cloud?.api_endpoint;
+        if (cloudEndpoint && elements.serverCloudApi) {
+            elements.serverCloudApi.value = cloudEndpoint;
         }
 
         if (parsed.git && parsed.git.enabled && parsed.git.url) {
