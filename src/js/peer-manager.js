@@ -126,6 +126,13 @@ async function probeServerCapabilities() {
                         turnAllowedForMedia: Boolean(info.capabilities.turn_allowed_for_media ?? info.capabilities.turnAllowedForMedia)
                     };
                 }
+                if (info.turn && info.turn.urls && info.turn.urls.length > 0) {
+                    current.turn = {
+                        urls: info.turn.urls,
+                        username: info.turn.username || '',
+                        credential: info.turn.credential || ''
+                    };
+                }
                 if (info.broadcast) {
                     current.broadcast = {
                         enabled: Boolean(info.broadcast.enabled),
@@ -252,11 +259,15 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
                     if (iceConfig && state.peer && state.peer.socket) {
                         console.log('[Relay] Dynamic Cloud TURN credentials applied.');
                         const baseIce = configToUse.config.iceServers || [];
-                        if (state.peer._options.config) {
-                            state.peer._options.config.iceServers = [
-                                ...baseIce,
-                                ...iceConfig.iceServers || [iceConfig]
-                            ];
+                        const mergedIce = [
+                            ...baseIce,
+                            ...iceConfig.iceServers || [iceConfig]
+                        ];
+                        if (state.peer.options && state.peer.options.config) {
+                            state.peer.options.config.iceServers = mergedIce;
+                        }
+                        if (state.peer._options && state.peer._options.config) {
+                            state.peer._options.config.iceServers = mergedIce;
                         }
                     }
 

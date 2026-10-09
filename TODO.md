@@ -11,6 +11,7 @@
 
 # 🧠 Funcionalidades Core (Git, P2P, Búsqueda, Identidad)
 - [ ] **Identidades**: Revisar si puede haber colisión con los números (IDs) generados.
+- [ ] **Vinculación / Auto-Login Mastodon en Pingo**: Consumir datos federados del appliance (`serverConfig.mastodon`) para autenticar al usuario vía OAuth transparente sin formularios externos.
 - [ ] **Evolucionar el webview**: Navegar por páginas, "guardarlas" y firmarlas en un commit.
 - [ ] **Opción de conectar fuera de PeerJS**: Explorar conexión directa o a través de otra red PeerJS.
 - [ ] **Geovallas Avanzadas**: Dibujo de zonas a mano alzada y catálogo de geocercas guardadas.

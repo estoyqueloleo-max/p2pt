@@ -103,6 +103,11 @@ header {
     z-index: 1;
 }
 
+/* Dark mode styling for OpenStreetMap standard tiles */
+#map .leaflet-tile-pane {
+    filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
+}
+
 footer {
     border-top: 1px solid var(--glass-border);
     border-bottom: none;

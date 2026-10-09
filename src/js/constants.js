@@ -38,13 +38,13 @@ export const DEFAULT_SERVER_CONFIG = {
     },
     fallbacks: FALLBACK_SIGNALING_SERVERS,
     turn: {
-        urls: [], // Custom TURN URLs if specified manually, e.g. ["turn:192.168.1.50:3478?transport=udp"]
-        username: '',
-        credential: ''
+        urls: ['turn:pingo.appliances.klitosan.com:3478?transport=udp', 'stun:pingo.appliances.klitosan.com:3478'],
+        username: 'pingo',
+        credential: 'pingosecret'
     },
     cloud: {
         enabled: import.meta.env.VITE_CLOUD_ENABLED === 'true',
-        apiEndpoint: import.meta.env.VITE_CLOUD_API_ENDPOINT || 'https://pingo-cloud.accreativos.com',
+        apiEndpoint: import.meta.env.VITE_CLOUD_API_ENDPOINT || 'https://pingo.appliances.klitosan.com',
         turnCredentialsPath: import.meta.env.VITE_CLOUD_TURN_PATH || '/turn-credentials'
     },
     broadcast: {

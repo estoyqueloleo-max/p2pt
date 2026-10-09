@@ -10,6 +10,7 @@ Este documento reúne la arquitectura, manual de pruebas paso a paso y la visió
 3. [Auto-Descubrimiento P2P por DHT / Swarms (Explicación a Fondo)](#3-auto-descubrimiento-p2p-por-dht--swarms-explicación-a-fondo)
 4. [Auto-Descubrimiento Local con mDNS / Zeroconf](#4-auto-descubrimiento-local-con-mdns--zeroconf)
 5. [Motor de Auto-Actualización y Sincronización de Repositorios](#5-motor-de-auto-actualización-y-sincronización-de-repositorios)
+6. [Topología de Red, NAT y Rango de Puertos UDP de Relay (3478 + 7000-7010)](#6-topología-de-red-nat-y-rango-de-puertos-udp-de-relay-3478--7000-7010)
 
 ---
 
@@ -196,3 +197,26 @@ El script de sincronización detecta la copia de archivos de `server/` a `estoyq
 ./sync_to_estoyqueloleo.sh -c "sync: update server features" -p
 ```
 * Adapta automáticamente `josejuanmontiel/pingo` a `estoyqueloleo-max/p2pt` en `main.go` y `updater.go` en el repositorio de destino.
+
+---
+
+## 6. Topología de Red, NAT y Rango de Puertos UDP de Relay (3478 + 7000-7010)
+
+### 📌 Diferenciación de Hosts en Infraestructura
+* **`pingo.appliances.klitosan.com` (IP LAN `192.168.1.3`)**:
+  * Aloja el contenedor Docker `pingo-appliance` (`192.168.1.4:5000/pingo/server`).
+  * Expone el puerto de control STUN/TURN (`3478/udp`, `3478/tcp`) y la interfaz Web/WebSocket en `:443` (vía proxy o puerto 16000 local).
+* **`salon.appliances.klitosan.com` (IP LAN `192.168.1.50`)**:
+  * Appliance principal / VM QEMU donde corre la pila complementaria (Git Smart HTTP, GoToSocial Mastodon, etc.).
+
+### ⚠️ Requisito Esencial de WebRTC TURN: Puertos de Control vs Puertos de Tráfico
+En WebRTC, el puerto **`3478 UDP` es exclusivamente para el handshake de control STUN/TURN**. 
+Cuando dos clientes están en redes móviles cerradas (4G/5G, CGNAT, Wi-Fi simétrico) y necesitan cruzar tráfico de medios/datos vía Relay:
+1. El servidor TURN reserva dinámicamente un puerto efímero (*Allocation*) en el rango `MIN_RELAY_PORT` - `MAX_RELAY_PORT`.
+2. Si dicho rango no está publicado en Docker ni redirigido en el router hacia el host (`192.168.1.3`), los paquetes de audio/video y datachannel **no llegan (i/o timeout)**.
+
+### 🚀 Configuración Recomendada de Rango Reducido (7000-7010 UDP):
+En entornos domésticos donde el router no permite abrir miles de puertos (`49152-65535`), se acota el rango a 10 puertos concurrentes mediante:
+* Variables de entorno: `MIN_RELAY_PORT=7000` y `MAX_RELAY_PORT=7010`.
+* Publicación en Docker: `-p 7000-7010:7000-7010/udp`.
+* Redirección en el router: UDP `3478` y rango UDP `7000-7010` hacia `192.168.1.3`.
