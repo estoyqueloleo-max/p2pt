@@ -54,6 +54,8 @@ flowchart TD
 | `/api/config` | HTTP POST | Modificación y auto-persistencia en caliente de configuración en disco (`.env`) |
 | `/tracker` | WebSocket | Endpoint de WebTorrent Tracker federado para enjambres P2P |
 | `/peerjs` | WebSocket | Servidor de señalización WebRTC para intercambio de SDP / ICE |
+| `/push/subscribe` | HTTP POST | Registro de suscripciones WebPush (VAPID) en disco persistente (`/var/lib/p2pt`) |
+| `/push/send/:id` | HTTP POST | Envío cifrado de notificaciones WebPush (RFC 8291/8292) hacia peers destinatarios |
 
 ---
 
