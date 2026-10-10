@@ -21,7 +21,21 @@ export const DEFAULT_STUN_SERVERS = [
     { urls: "stun:stun.schlund.de" }
 ];
 
+// Auto-detección dinámica si el cliente web se está ejecutando directamente dentro de un appliance (ej: /web)
+const isBrowser = typeof window !== 'undefined' && Boolean(window.location && window.location.hostname);
+const locHost = isBrowser ? window.location.hostname : '';
+const locPort = isBrowser && window.location.port ? parseInt(window.location.port, 10) : (isBrowser && window.location.protocol === 'https:' ? 443 : 80);
+const locSecure = isBrowser ? window.location.protocol === 'https:' : true;
+const isHostedOnAppliance = isBrowser && locHost !== '' && locHost !== 'estoyqueloleo-max.github.io' && locHost !== 'pingo.accreativos.com';
+
+const detectedHost = isHostedOnAppliance ? locHost : 'pingo.appliances.klitosan.com';
+const detectedPort = isHostedOnAppliance ? locPort : 443;
+const detectedSecure = isHostedOnAppliance ? locSecure : true;
+const detectedProto = detectedSecure ? 'https' : 'http';
+const detectedAPIEndpoint = isHostedOnAppliance ? `${detectedProto}://${detectedHost}:${detectedPort}` : 'https://pingo.appliances.klitosan.com';
+
 export const FALLBACK_SIGNALING_SERVERS = [
+    { host: detectedHost, port: detectedPort, path: '/', secure: detectedSecure },
     { host: 'pingo.appliances.klitosan.com', port: 443, path: '/', secure: true },
     { host: 'salon.appliances.klitosan.com', port: 443, path: '/', secure: true },
     { host: 'peerjs-server.accreativos.com', port: 443, path: '/', secure: true },
@@ -30,31 +44,34 @@ export const FALLBACK_SIGNALING_SERVERS = [
 
 export const DEFAULT_SERVER_CONFIG = {
     signaling: {
-        host: import.meta.env.VITE_PEER_HOST || 'pingo.appliances.klitosan.com',
-        port: import.meta.env.VITE_PEER_PORT ? parseInt(import.meta.env.VITE_PEER_PORT, 10) : 443,
+        host: import.meta.env.VITE_PEER_HOST || detectedHost,
+        port: import.meta.env.VITE_PEER_PORT ? parseInt(import.meta.env.VITE_PEER_PORT, 10) : detectedPort,
         path: import.meta.env.VITE_PEER_PATH || '/',
-        secure: import.meta.env.VITE_PEER_SECURE !== undefined ? import.meta.env.VITE_PEER_SECURE === 'true' : true,
+        secure: import.meta.env.VITE_PEER_SECURE !== undefined ? import.meta.env.VITE_PEER_SECURE === 'true' : detectedSecure,
         key: 'peerjs'
     },
     fallbacks: FALLBACK_SIGNALING_SERVERS,
     turn: {
-        urls: ['turn:pingo.appliances.klitosan.com:3478?transport=udp', 'stun:pingo.appliances.klitosan.com:3478'],
+        urls: [
+            `turn:${detectedHost}:3478?transport=udp`,
+            `stun:${detectedHost}:3478`
+        ],
         username: 'pingo',
         credential: 'pingosecret'
     },
     cloud: {
-        enabled: import.meta.env.VITE_CLOUD_ENABLED === 'true',
-        apiEndpoint: import.meta.env.VITE_CLOUD_API_ENDPOINT || 'https://pingo.appliances.klitosan.com',
+        enabled: isHostedOnAppliance || import.meta.env.VITE_CLOUD_ENABLED === 'true',
+        apiEndpoint: import.meta.env.VITE_CLOUD_API_ENDPOINT || detectedAPIEndpoint,
         turnCredentialsPath: import.meta.env.VITE_CLOUD_TURN_PATH || '/turn-credentials'
     },
     broadcast: {
-        enabled: false,
-        whipUrl: '',
-        whepUrl: ''
+        enabled: isHostedOnAppliance,
+        whipUrl: isHostedOnAppliance ? `${detectedAPIEndpoint}/api/whip` : '',
+        whepUrl: isHostedOnAppliance ? `${detectedAPIEndpoint}/api/whep` : ''
     },
     capabilities: {
-        broadcastRelay: false,
-        turnAllowedForMedia: false
+        broadcastRelay: isHostedOnAppliance,
+        turnAllowedForMedia: isHostedOnAppliance
     }
 };
 
