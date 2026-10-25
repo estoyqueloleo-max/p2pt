@@ -409,6 +409,10 @@ export function reconnectPeer(onOpen, onConnection, onError, onDisconnected) {
  * Ensures the PeerJS signaling connection is alive.
  * Call this when the app returns to foreground.
  */
+/**
+ * Ensures the PeerJS signaling connection is alive.
+ * Call this when the app returns to foreground.
+ */
 export function ensureSignalingConnection() {
     if (!state.peer) {
         console.log('[Peer] Peer not initialized, initializing...');
@@ -419,9 +423,21 @@ export function ensureSignalingConnection() {
     if (state.peer.destroyed) {
         console.log('[Peer] Peer was destroyed, re-initializing...');
         initPeer();
-    } else if (state.peer.disconnected) {
-        console.log('[Peer] Peer disconnected, reconnecting...');
-        state.peer.reconnect();
+        return;
+    }
+
+    // Comprobar no solo el flag lógico sino el estado físico del WebSocket subyacente
+    const ws = state.peer.socket?._ws;
+    const wsDead = !ws || ws.readyState === WebSocket.CLOSING || ws.readyState === WebSocket.CLOSED;
+
+    if (state.peer.disconnected || wsDead) {
+        console.log('[Peer] Peer signaling disconnected or underlying WebSocket dead, reconnecting...');
+        try {
+            state.peer.reconnect();
+        } catch (e) {
+            console.warn('[Peer] Reconnect throw error, re-initializing Peer instance:', e);
+            reconnectPeer();
+        }
     } else {
         console.log('[Peer] Signaling connection is healthy.');
     }
@@ -432,7 +448,7 @@ export function ensureSignalingConnection() {
  * or are in the agenda and should be reachable.
  */
 const reconnectTimers = {};
-const reconnectAttempts = {};
+let reconnectAttempts = {};
 
 export function cancelReconnect(peerId) {
     const id = String(peerId);
@@ -443,9 +459,33 @@ export function cancelReconnect(peerId) {
     delete reconnectAttempts[id];
 }
 
+export function resetAllReconnectAttempts() {
+    // Al volver de segundo plano, limpiamos los intentos acumulados para reintentar rápido
+    reconnectAttempts = {};
+    for (const id in reconnectTimers) {
+        clearTimeout(reconnectTimers[id]);
+        delete reconnectTimers[id];
+    }
+}
+
+/**
+ * Comprueba si una conexión existente sigue verdaderamente viva a nivel WebRTC
+ */
+export function isConnectionTrulyAlive(conn) {
+    if (!conn || !conn.open) return false;
+    const pc = conn.peerConnection;
+    if (pc) {
+        const iceState = pc.iceConnectionState;
+        const connState = pc.connectionState;
+        if (iceState === 'disconnected' || iceState === 'failed' || iceState === 'closed') return false;
+        if (connState === 'disconnected' || connState === 'failed' || connState === 'closed') return false;
+    }
+    return true;
+}
+
 export function scheduleReconnect(peerId) {
     const id = String(peerId);
-    if (state.connections[id] && state.connections[id].open) {
+    if (state.connections[id] && isConnectionTrulyAlive(state.connections[id])) {
         cancelReconnect(id);
         return;
     }
@@ -456,13 +496,13 @@ export function scheduleReconnect(peerId) {
     const attempts = (reconnectAttempts[id] || 0) + 1;
     reconnectAttempts[id] = attempts;
 
-    // Exponential backoff: 2s, 4s, 8s, 16s, max 30s
-    const delay = Math.min(Math.pow(2, attempts) * 1000, 30000);
+    // Retardo progresivo: 1s, 2s, 4s, 8s, max 15s
+    const delay = Math.min(Math.pow(2, attempts - 1) * 1000, 15000);
     console.log(`[Peer] Auto-reconexión programada a ${id} (#${attempts}) en ${delay / 1000}s`);
 
     reconnectTimers[id] = setTimeout(async () => {
         delete reconnectTimers[id];
-        if (state.connections[id] && state.connections[id].open) {
+        if (state.connections[id] && isConnectionTrulyAlive(state.connections[id])) {
             cancelReconnect(id);
             return;
         }
@@ -473,20 +513,30 @@ export function scheduleReconnect(peerId) {
             console.log(`[Peer] ✅ Auto-reconexión exitosa con ${id}.`);
         } catch (err) {
             console.warn(`[Peer] Reintento fallido con ${id}:`, err.message);
-            if (attempts < 15) {
-                scheduleReconnect(id);
-            }
+            // No rendirse nunca definitivamente: ciclar con backoff suave
+            scheduleReconnect(id);
         }
     }, delay);
 }
 
 export async function restoreActiveConnections() {
-    console.log('[Peer] Restoring active connections...');
-    
-    // 1. Identify which peers we should try to connect to.
+    console.log('[Peer] Restoring active connections and purging zombie channels...');
+    resetAllReconnectAttempts();
+
+    // 1. Purgar conexiones zombies que quedaron congeladas en segundo plano
+    for (const id in state.connections) {
+        const conn = state.connections[id];
+        if (!isConnectionTrulyAlive(conn)) {
+            console.warn(`[Peer] Purgando conexión zombie con ${id}`);
+            try { conn.close(); } catch (e) {}
+            delete state.connections[id];
+        }
+    }
+
+    // 2. Reconectar con los contactos de la agenda
     for (const contact of state.agenda) {
         const id = String(contact.derivedId);
-        if (!state.connections[id] || !state.connections[id].open) {
+        if (!state.connections[id] || !isConnectionTrulyAlive(state.connections[id])) {
             scheduleReconnect(id);
         }
     }
@@ -898,9 +948,13 @@ export async function connectToPeer(targetId) {
     // Stringify IDs for robust comparison
     const targetIdStr = String(targetId);
 
-    if (state.connections[targetIdStr] && state.connections[targetIdStr].open) {
+    if (state.connections[targetIdStr] && isConnectionTrulyAlive(state.connections[targetIdStr])) {
         console.log('[Peer] Connection to', targetIdStr, 'is already open.');
         return state.connections[targetIdStr];
+    } else if (state.connections[targetIdStr]) {
+        console.log('[Peer] Previous connection to', targetIdStr, 'was dead. Purging before reconnecting...');
+        try { state.connections[targetIdStr].close(); } catch (e) {}
+        delete state.connections[targetIdStr];
     }
 
     // Wait until local state.peer is ready if it's still connecting to signaling
