@@ -108,3 +108,32 @@ export function updateLocationStatus(text, iconClass) {
         elements.locationStatus.innerHTML = `<i class="fas ${iconClass}"></i> ${text}`;
     }
 }
+
+// In-memory ring buffer for runtime connection diagnostics (last 50 events)
+const DIAGNOSTIC_LOGS = [];
+const MAX_DIAG_LOGS = 50;
+
+export function logDiag(category, message, level = 'info') {
+    const timeStr = new Date().toLocaleTimeString('es-ES', { hour12: false });
+    const entry = { time: timeStr, category, message, level };
+    DIAGNOSTIC_LOGS.push(entry);
+    if (DIAGNOSTIC_LOGS.length > MAX_DIAG_LOGS) {
+        DIAGNOSTIC_LOGS.shift();
+    }
+    // Also mirror to console for developer tools
+    if (level === 'error') {
+        console.error(`[Diag][${category}] ${message}`);
+    } else if (level === 'warn') {
+        console.warn(`[Diag][${category}] ${message}`);
+    } else {
+        console.log(`[Diag][${category}] ${message}`);
+    }
+}
+
+export function getDiagLogs() {
+    return [...DIAGNOSTIC_LOGS];
+}
+
+export function clearDiagLogs() {
+    DIAGNOSTIC_LOGS.length = 0;
+}

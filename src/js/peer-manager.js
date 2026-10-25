@@ -5,7 +5,7 @@
 import { Peer } from 'peerjs';
 import { state, elements } from './state.js';
 import { PEER_CONFIG, CLOUD_CONFIG, getActivePeerConfig, getServerConfig, saveServerConfig } from './constants.js';
-import { generateAuthToken, verifyAuthToken, updateLocationStatus } from './utils.js';
+import { generateAuthToken, verifyAuthToken, updateLocationStatus, logDiag } from './utils.js';
 import { 
     signChallenge, verifyPeerChallenge, generateChallengeNonce, exportMyPublicKey 
 } from './crypto-manager.js';
@@ -34,11 +34,15 @@ async function getUI() {
 }
 
 async function fetchTurnCredentials(myPeerId) {
-    if (!state.useCloudServices) return null;
+    if (!state.useCloudServices) {
+        logDiag('TURN', 'Servicios Cloud desactivados (useCloudServices=false). No se obtienen credenciales dinámicas.', 'warn');
+        return null;
+    }
     
     try {
         const token = await generateAuthToken(state.myIdentity.salt);
         const url = `${CLOUD_CONFIG.apiEndpoint}${CLOUD_CONFIG.turnCredentialsPath}?peerId=${myPeerId}`;
+        logDiag('TURN', `Solicitando credenciales a ${url}...`);
         
         const response = await fetch(url, {
             headers: { 'X-Pingo-Auth': token }
@@ -46,6 +50,8 @@ async function fetchTurnCredentials(myPeerId) {
         
         if (response.ok) {
             const data = await response.json();
+            const serverCount = data.iceServers ? data.iceServers.length : 0;
+            logDiag('TURN', `✅ Credenciales recibidas con éxito (${serverCount} servidores ICE configurados)`);
             if (data.capabilities || data.broadcast) {
                 const current = getServerConfig();
                 if (data.capabilities) {
@@ -65,8 +71,11 @@ async function fetchTurnCredentials(myPeerId) {
                 console.log('[Config] Updated capabilities from Servidor Amigo:', current.capabilities);
             }
             return data;
+        } else {
+            logDiag('TURN', `❌ Error HTTP ${response.status} al solicitar credenciales a ${url}`, 'error');
         }
     } catch (err) {
+        logDiag('TURN', `❌ Excepción de red al conectar a ${CLOUD_CONFIG.apiEndpoint}: ${err.message}`, 'error');
         console.error('[Relay] Error fetching TURN credentials:', err);
     }
     return null;
@@ -279,18 +288,18 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
     state.peer.on('open', async (id) => {
         console.log('[Peer] Signaling server connection established. My ID:', id);
         state.myPeerId = id;
+        logDiag('Signaling', `✅ Conectado a servidor de señalización con ID: ${id}`);
         startSignalingHeartbeat();
 
         // Proactive cloud registration and TURN fetch (Non-blocking)
         if (state.useCloudServices) {
             (async () => {
                 try {
-                    console.log('[Cloud] Ensuring registration in background...');
+                    logDiag('Cloud', 'Iniciando registro en la nube y suscripción Push...');
                     await initPushNotifications(id, updateLocationStatus);
                     
                     const iceConfig = await fetchTurnCredentials(id);
                     if (iceConfig && state.peer && state.peer.socket) {
-                        console.log('[Relay] Dynamic Cloud TURN credentials applied.');
                         const baseIce = configToUse.config.iceServers || [];
                         const mergedIce = [
                             ...baseIce,
@@ -302,13 +311,17 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
                         if (state.peer._options && state.peer._options.config) {
                             state.peer._options.config.iceServers = mergedIce;
                         }
+                        logDiag('ICE', `Servidores ICE actualizados (${mergedIce.length} servidores configurados)`);
                     }
 
                     await fetchGitCredentials(id);
                 } catch (err) {
+                    logDiag('Cloud', `Advertencia en inicialización cloud: ${err.message}`, 'warn');
                     console.warn('[Cloud] Background initialization failed:', err);
                 }
             })();
+        } else {
+            logDiag('Cloud', 'Servicios Cloud desactivados por el usuario', 'info');
         }
 
         if (onOpen) onOpen(id);
@@ -553,15 +566,37 @@ if (typeof window !== 'undefined') {
 export function handleIncomingConnection(conn) {
     let authenticated = (state.myIdentity.salt === '');
     let pendingBuffer = [];
+    logDiag('P2P', `📞 Conexión WebRTC entrante recibida desde ${conn.peer} (open=${conn.open})`);
     console.log('[Peer] Incoming connection from:', conn.peer, 'Open:', conn.open);
 
     const authTimeout = setTimeout(() => {
         if (!authenticated) {
+            logDiag('Auth', `⏱️ Tiempo de espera de autenticación agotado para ${conn.peer}`, 'warn');
             console.warn('[Peer] Auth timeout from:', conn.peer);
             updateLocationStatus(`Tiempo de espera agotado: ${conn.peer}`, 'fa-hourglass-end');
             conn.close();
         }
     }, 30000);
+
+    // Monitor ICE candidates and state changes for incoming connection
+    const setupIncomingPc = () => {
+        const pc = conn.peerConnection;
+        if (pc) {
+            pc.addEventListener('iceconnectionstatechange', () => {
+                logDiag('ICE', `Estado ICE entrante de ${conn.peer}: ${pc.iceConnectionState}`);
+                console.log(`[ICE] ${conn.peer} State:`, pc.iceConnectionState);
+            });
+            pc.addEventListener('icecandidate', (evt) => {
+                if (evt.candidate) {
+                    const cType = evt.candidate.type || 'unknown';
+                    const cProto = evt.candidate.protocol || 'udp';
+                    const cRel = evt.candidate.relatedAddress ? `(rel: ${evt.candidate.relatedAddress})` : '';
+                    logDiag('ICE', `Candidato local (respuesta a ${conn.peer}): tipo=${cType} proto=${cProto} ${cRel}`);
+                }
+            });
+        }
+    };
+    setTimeout(setupIncomingPc, 50);
 
     const onOpen = () => {
         // Prevent redundant connections
@@ -572,15 +607,7 @@ export function handleIncomingConnection(conn) {
             return;
         }
 
-        // Diagnostic: Monitor ICE if possible
-        const pc = conn.peerConnection;
-        if (pc) {
-            console.log('[Peer] ICE Transport Policy:', pc.getConfiguration?.().iceTransportPolicy || 'default');
-            pc.addEventListener('iceconnectionstatechange', () => {
-                console.log(`[ICE] ${conn.peer} State:`, pc.iceConnectionState);
-            });
-        }
-
+        logDiag('P2P', `✅ Canal de datos entrante abierto con ${conn.peer}`);
         console.log('[Peer] Awaiting auth from:', conn.peer);
         state.connections[conn.peer] = conn;
 
@@ -977,7 +1004,7 @@ export async function connectToPeer(targetId) {
     const saltToUse = contact ? contact.salt : '';
     const alias = contact ? contact.alias : targetIdStr;
 
-    console.log('Connecting to:', targetId);
+    logDiag('P2P', `Iniciando llamada WebRTC saliente hacia ${targetIdStr} (${alias})...`);
     updateLocationStatus(`Conectando con ${alias}...`, 'fa-spinner fa-spin');
 
     const conn = state.peer.connect(targetId, { reliable: true });
@@ -986,12 +1013,12 @@ export async function connectToPeer(targetId) {
     state.pendingConnections = state.pendingConnections || {};
     state.pendingConnections[targetIdStr] = conn;
 
-    conn.on('open', async () => {
-        delete state.pendingConnections[targetIdStr];
-        // Diagnostic: Monitor ICE if possible
+    // Attach immediate ICE candidate and state listener on underlying RTCPeerConnection
+    const checkPc = () => {
         const pc = conn.peerConnection;
         if (pc) {
             pc.addEventListener('iceconnectionstatechange', () => {
+                logDiag('ICE', `Estado ICE con ${alias}: ${pc.iceConnectionState}`);
                 console.log(`[ICE] Outgoing to ${targetId} State:`, pc.iceConnectionState);
                 if (pc.iceConnectionState === 'failed') {
                     updateLocationStatus(`Conexión directa fallida con ${alias}`, 'fa-triangle-exclamation');
@@ -1000,8 +1027,19 @@ export async function connectToPeer(targetId) {
                     }
                 }
             });
+            pc.addEventListener('icecandidate', (evt) => {
+                if (evt.candidate) {
+                    const cType = evt.candidate.type || 'unknown';
+                    const cProto = evt.candidate.protocol || 'udp';
+                    const cRel = evt.candidate.relatedAddress ? `(rel: ${evt.candidate.relatedAddress})` : '';
+                    logDiag('ICE', `Candidato generado hacia ${alias}: tipo=${cType} proto=${cProto} ${cRel}`);
+                }
+            });
         }
-
+    };
+    conn.on('open', async () => {
+        delete state.pendingConnections[targetIdStr];
+        logDiag('P2P', `✅ Canal de datos WebRTC abierto con ${targetIdStr} (${alias})`);
         console.log('[Peer] Connection open to:', targetId, 'Sending auth...');
         // Enviar handshake legacy (para compatibilidad hacia atrás) y estar listos para responder al desafío asimétrico
         const token = await generateAuthToken(saltToUse);

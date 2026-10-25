@@ -13,7 +13,7 @@ import {
 } from './peer-manager.js';
 import { saveIdentity, saveAgenda, getAliasForPeer } from './identity-manager.js';
 import { saveGeofenceState, loadGeofenceState } from './geofence-manager.js';
-import { derivePeerId, getPeerColor, updateLocationStatus } from './utils.js';
+import { derivePeerId, getPeerColor, updateLocationStatus, getDiagLogs, clearDiagLogs, logDiag } from './utils.js';
 import { initPushNotifications, sendPushPing } from '../push-notifications.js';
 import { startRecording, stopRecording, saveRoute } from './route-manager.js';
 import { 
@@ -2805,7 +2805,7 @@ export async function showConnectionStats(peerId) {
 export function showSignalingStats() {
     if (!elements.connStatsModal) return;
 
-    elements.connStatsTitle.innerText = 'Servidor de Señalización';
+    elements.connStatsTitle.innerHTML = '<i class="fas fa-tower-broadcast"></i> Diagnóstico de Red y Señalización';
     elements.connStatsViz.innerHTML = '';
     elements.connStatsDetails.innerHTML = '';
     elements.connStatsModal.style.display = 'flex';
@@ -2853,19 +2853,95 @@ export function showSignalingStats() {
         const port = state.peer?._options?.port || 443;
         const secure = state.peer?._options?.secure ? 'Sí' : 'No';
         
+        // Extraer lista actual de servidores ICE activos en PeerJS
+        const currentIceServers = state.peer?.options?.config?.iceServers || state.peer?._options?.config?.iceServers || [];
+        const iceServersSummary = currentIceServers.length > 0
+            ? currentIceServers.map(s => {
+                const urls = Array.isArray(s.urls) ? s.urls.join(', ') : (s.urls || 'n/a');
+                const auth = s.username ? ` (user: ${s.username})` : ' (público/sin auth)';
+                return `<li style="margin-bottom: 3px; font-family: monospace; font-size: 0.72rem; word-break: break-all;"><code>${urls}</code>${auth}</li>`;
+            }).join('')
+            : '<li style="color: #ef4444;">Ningún servidor STUN/TURN configurado</li>';
+
+        // Obtener buffer de logs en memoria
+        const logs = getDiagLogs();
+        const logsHtml = logs.length > 0
+            ? logs.slice().reverse().map(l => {
+                const color = l.level === 'error' ? '#f87171' : (l.level === 'warn' ? '#fbbf24' : '#94a3b8');
+                return `<div style="color: ${color}; margin-bottom: 2px; font-family: monospace; font-size: 0.7rem; line-height: 1.25;">
+                    <span style="opacity: 0.6;">[${l.time}]</span> <strong>[${l.category}]</strong> ${l.message}
+                </div>`;
+            }).join('')
+            : '<div style="opacity: 0.5; font-style: italic;">No hay registros de eventos todavía.</div>';
+
         elements.connStatsDetails.innerHTML = `
-            <p><span>Estado Global:</span> <strong>${statusLabel}</strong></p>
-            <p><span>Tu ID:</span> <strong>${peerId}</strong></p>
-            <p><span>Rol de Pestaña:</span> <strong>${state.isPrimaryTab ? 'Principal' : 'Pasiva'}</strong></p>
-            <p><span>Servidor:</span> <strong>${server}</strong></p>
-            <p><span>Puerto:</span> <strong>${port}</strong></p>
-            <p><span>Cifrado (SSL):</span> <strong>${secure}</strong></p>
-            <p style="font-size: 0.7rem; opacity: 0.5; margin-top: 10px; line-height: 1.2;">
-                ${state.isPrimaryTab 
-                    ? 'Esta pestaña tiene el control del GPS y las conexiones P2P activas.' 
-                    : 'Hay otra pestaña abierta con Pingo. Esta pestaña está en modo lectura para evitar duplicar el tráfico.'}
-            </p>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px; margin-bottom: 8px;">
+                <span><strong>Estado Global:</strong> <span style="color: ${statusColor};">${statusLabel}</span></span>
+                <span style="font-size: 0.75rem; background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px;">ID: <code>${peerId}</code></span>
+            </div>
+
+            <p style="margin: 3px 0;"><span>Servidor Señalización:</span> <strong>${server}:${port} (SSL: ${secure})</strong></p>
+            <p style="margin: 3px 0;"><span>Servicios Cloud / TURN:</span> <strong>${state.useCloudServices ? '✅ Activo' : '⚠️ Desactivado'}</strong></p>
+            <p style="margin: 3px 0;"><span>Rol Pestaña:</span> <strong>${state.isPrimaryTab ? 'Principal' : 'Pasiva'}</strong></p>
+
+            <div style="margin-top: 10px;">
+                <div style="font-weight: 600; font-size: 0.78rem; color: var(--primary); margin-bottom: 4px;">
+                    <i class="fas fa-shield-halved"></i> Servidores ICE Activos (${currentIceServers.length}):
+                </div>
+                <ul style="margin: 0; padding-left: 15px; max-height: 85px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 6px; padding: 6px 6px 6px 20px;">
+                    ${iceServersSummary}
+                </ul>
+            </div>
+
+            <div style="margin-top: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <span style="font-weight: 600; font-size: 0.78rem; color: #a5b4fc;"><i class="fas fa-list-ul"></i> Registros en Vivo (Últimos ${logs.length}):</span>
+                    <button type="button" class="btn btn-outline btn-xs" id="copy-diag-logs-btn" style="padding: 2px 6px; font-size: 0.65rem;">
+                        <i class="fas fa-copy"></i> Copiar
+                    </button>
+                </div>
+                <div id="diag-logs-container" style="max-height: 130px; overflow-y: auto; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px; text-align: left;">
+                    ${logsHtml}
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 6px; margin-top: 10px;">
+                <button type="button" class="btn btn-outline btn-sm" id="btn-reconnect-peer-diag" style="flex: 1; font-size: 0.75rem; padding: 4px;">
+                    <i class="fas fa-rotate"></i> Reconectar Señal
+                </button>
+                <button type="button" class="btn btn-outline btn-sm" id="btn-clear-diag-logs" style="font-size: 0.75rem; padding: 4px 8px;">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
         `;
+
+        // Event listeners para botones dentro del modal
+        const copyBtn = document.getElementById('copy-diag-logs-btn');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', () => {
+                const text = logs.map(l => `[${l.time}][${l.category}][${l.level}] ${l.message}`).join('\n');
+                navigator.clipboard.writeText(text || 'Sin logs');
+                copyBtn.innerHTML = '<i class="fas fa-check"></i> Copiado';
+                setTimeout(() => { copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copiar'; }, 2000);
+            });
+        }
+
+        const clearBtn = document.getElementById('btn-clear-diag-logs');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                clearDiagLogs();
+                showSignalingStats();
+            });
+        }
+
+        const reconnBtn = document.getElementById('btn-reconnect-peer-diag');
+        if (reconnBtn) {
+            reconnBtn.addEventListener('click', () => {
+                logDiag('Signaling', 'Forzando reconexión manual a petición del usuario...');
+                ensureSignalingConnection();
+                showSignalingStats();
+            });
+        }
     }
 }
 
