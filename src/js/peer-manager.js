@@ -599,17 +599,25 @@ export function handleIncomingConnection(conn) {
                 logDiag('ICE', `Estado ICE entrante de ${conn.peer}: ${pc.iceConnectionState}`);
                 console.log(`[ICE] ${conn.peer} State:`, pc.iceConnectionState);
             });
+            pc.addEventListener('connectionstatechange', () => {
+                logDiag('ICE', `Estado Conexión (PC) con ${conn.peer}: ${pc.connectionState}`);
+                console.log(`[PC] ${conn.peer} ConnectionState:`, pc.connectionState);
+            });
+            pc.addEventListener('icecandidateerror', (evt) => {
+                logDiag('ICE', `❌ Error ICE con ${conn.peer} (${evt.url || 'STUN/TURN'}): ${evt.errorCode} - ${evt.errorText}`, 'warn');
+            });
             pc.addEventListener('icecandidate', (evt) => {
                 if (evt.candidate) {
                     const cType = evt.candidate.type || 'unknown';
                     const cProto = evt.candidate.protocol || 'udp';
                     const cRel = evt.candidate.relatedAddress ? `(rel: ${evt.candidate.relatedAddress})` : '';
-                    logDiag('ICE', `Candidato local (respuesta a ${conn.peer}): tipo=${cType} proto=${cProto} ${cRel}`);
+                    logDiag('ICE', `Candidato local generado: tipo=${cType} proto=${cProto} ${cRel}`);
                 }
             });
         }
     };
     setTimeout(setupIncomingPc, 50);
+    setTimeout(setupIncomingPc, 300);
 
     const onOpen = () => {
         // Prevent redundant connections
@@ -1040,6 +1048,13 @@ export async function connectToPeer(targetId) {
                     }
                 }
             });
+            pc.addEventListener('connectionstatechange', () => {
+                logDiag('ICE', `Estado Conexión (PC) con ${alias}: ${pc.connectionState}`);
+                console.log(`[PC] Outgoing ${alias} ConnectionState:`, pc.connectionState);
+            });
+            pc.addEventListener('icecandidateerror', (evt) => {
+                logDiag('ICE', `❌ Error ICE saliente hacia ${alias} (${evt.url || 'STUN/TURN'}): ${evt.errorCode} - ${evt.errorText}`, 'warn');
+            });
             pc.addEventListener('icecandidate', (evt) => {
                 if (evt.candidate) {
                     const cType = evt.candidate.type || 'unknown';
@@ -1050,6 +1065,9 @@ export async function connectToPeer(targetId) {
             });
         }
     };
+    setTimeout(checkPc, 50);
+    setTimeout(checkPc, 300);
+    setTimeout(checkPc, 1000);
     conn.on('open', async () => {
         delete state.pendingConnections[targetIdStr];
         logDiag('P2P', `✅ Canal de datos WebRTC abierto con ${targetIdStr} (${alias})`);
