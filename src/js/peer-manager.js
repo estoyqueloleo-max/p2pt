@@ -251,9 +251,35 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
     console.log('[Peer] Initializing Peer with configuration:', configToUse);
     state.peer = new Peer(randomId, configToUse);
 
+    let signalingHeartbeatTimer = null;
+
+    const startSignalingHeartbeat = () => {
+        if (signalingHeartbeatTimer) clearInterval(signalingHeartbeatTimer);
+        signalingHeartbeatTimer = setInterval(() => {
+            if (state.peer && !state.peer.destroyed && !state.peer.disconnected && state.peer.socket) {
+                try {
+                    // Si el socket PeerJS subyacente está abierto, enviar HEARTBEAT
+                    if (state.peer.socket._ws && state.peer.socket._ws.readyState === WebSocket.OPEN) {
+                        state.peer.socket._ws.send(JSON.stringify({ type: 'HEARTBEAT' }));
+                    }
+                } catch (e) {
+                    console.debug('[Peer Heartbeat] Error sending heartbeat:', e);
+                }
+            }
+        }, 20000);
+    };
+
+    const stopSignalingHeartbeat = () => {
+        if (signalingHeartbeatTimer) {
+            clearInterval(signalingHeartbeatTimer);
+            signalingHeartbeatTimer = null;
+        }
+    };
+
     state.peer.on('open', async (id) => {
         console.log('[Peer] Signaling server connection established. My ID:', id);
         state.myPeerId = id;
+        startSignalingHeartbeat();
 
         // Proactive cloud registration and TURN fetch (Non-blocking)
         if (state.useCloudServices) {
@@ -326,6 +352,7 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
     state.peer.on('error', (err) => {
         console.error('[Peer] Signaling Server Error:', err.type, '-', err.message);
         if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed') {
+            stopSignalingHeartbeat();
             updateLocationStatus('Error de señalización. Evaluando conmutación (failover)...', 'fa-tower-cell');
 
             // AUTO-FAILOVER: Si no estamos en modo local y falla la red con el servidor de señalización,
@@ -353,6 +380,7 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
 
     state.peer.on('disconnected', () => {
         console.warn('[Peer] Disconnected from signaling server.');
+        stopSignalingHeartbeat();
         if (onDisconnected) onDisconnected();
         // Automatic reconnection attempt with a small delay
         setTimeout(() => {

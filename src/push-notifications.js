@@ -1,7 +1,9 @@
 import { VERSION, CLOUD_CONFIG } from './js/constants.js';
 
 const PUSH_CONFIG = {
-    VAPID_PUBLIC_KEY: (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_VAPID_PUBLIC_KEY) || 'BEJ45uzzL_hw2MpJaxTw8Jwk-hbqJE3D5GI7TWMBaYOLkKoVsJQJGVZrpDOASMBpsCpF3bFI2LFZaZecqAWfAKk',
+    get VAPID_PUBLIC_KEY() {
+        return CLOUD_CONFIG.vapidPublicKey || (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_VAPID_PUBLIC_KEY) || 'BEJ45uzzL_hw2MpJaxTw8Jwk-hbqJE3D5GI7TWMBaYOLkKoVsJQJGVZrpDOASMBpsCpF3bFI2LFZaZecqAWfAKk';
+    },
     get PUSH_API_ENDPOINT() {
         const base = (CLOUD_CONFIG.apiEndpoint || (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CLOUD_API_ENDPOINT) || 'https://pingo-cloud.accreativos.com').replace(/\/+$/, '');
         return `${base}/push/subscribe`;

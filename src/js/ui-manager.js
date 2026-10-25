@@ -1678,13 +1678,56 @@ export function setupEventListeners() {
         }
     }
 
+    async function parseServerConfigData(dataStr) {
+        if (!dataStr) throw new Error('Datos vacíos');
+        const trimmed = dataStr.trim();
+
+        // 1. Si es una URL corta /c/{token}, resolver configuración vía fetch
+        if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+            try {
+                const url = new URL(trimmed);
+                if (url.pathname.startsWith('/c/')) {
+                    // Fetch directo con format=json o Accept application/json
+                    const fetchURL = new URL(url.toString());
+                    fetchURL.searchParams.set('format', 'json');
+                    const res = await fetch(fetchURL.toString(), {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (res.ok) {
+                        return await res.json();
+                    }
+                }
+                const param = url.searchParams.get('serverConfig');
+                if (param) {
+                    const normalized = param.replace(/-/g, '+').replace(/_/g, '/');
+                    return JSON.parse(atob(normalized));
+                }
+            } catch (e) {
+                console.warn('[Config] Error analizando URL:', e);
+            }
+        }
+
+        // 2. Si es JSON directo
+        try {
+            return JSON.parse(trimmed);
+        } catch (e) {
+            // 3. Si viene como Base64URL sin URL previa
+            try {
+                const normalized = trimmed.replace(/-/g, '+').replace(/_/g, '/');
+                return JSON.parse(atob(normalized));
+            } catch (err2) {
+                throw new Error('Formato no reconocido: debe ser un enlace de configuración o JSON válido.');
+            }
+        }
+    }
+
     // QR Camera Scanner & Topic Auto-Discovery Listeners
     const openQRScannerModal = () => {
         if (elements.qrCameraScannerModal) {
             elements.qrCameraScannerModal.style.display = 'flex';
-            startCameraQRScanner(elements.qrVideo, elements.qrCanvas, elements.qrScannerFeedback, (qrData) => {
+            startCameraQRScanner(elements.qrVideo, elements.qrCanvas, elements.qrScannerFeedback, async (qrData) => {
                 try {
-                    const parsed = parseServerConfigData(qrData);
+                    const parsed = await parseServerConfigData(qrData);
                     applyParsedServerConfig(parsed, '¡Código QR leído con éxito! ✅');
                     if (elements.qrCameraScannerModal) elements.qrCameraScannerModal.style.display = 'none';
                     if (elements.serverConfigImportModal) elements.serverConfigImportModal.style.display = 'none';
@@ -1717,7 +1760,7 @@ export function setupEventListeners() {
             try {
                 if (elements.qrScannerFeedback) elements.qrScannerFeedback.textContent = 'Analizando imagen...';
                 const qrData = await scanImageFile(file, elements.qrCanvas);
-                const parsed = parseServerConfigData(qrData);
+                const parsed = await parseServerConfigData(qrData);
                 applyParsedServerConfig(parsed, '¡Código QR de imagen procesado! ✅');
                 stopCameraQRScanner();
                 if (elements.qrCameraScannerModal) elements.qrCameraScannerModal.style.display = 'none';
@@ -1768,7 +1811,7 @@ export function setupEventListeners() {
     }
 
     if (elements.serverConfigImportModalApply) {
-        elements.serverConfigImportModalApply.addEventListener('click', () => {
+        elements.serverConfigImportModalApply.addEventListener('click', async () => {
             const raw = elements.serverConfigImportJsonTextarea ? elements.serverConfigImportJsonTextarea.value.trim() : '';
             if (!raw) {
                 alert('Pega un bloque JSON o un enlace de configuración.');
@@ -1776,18 +1819,7 @@ export function setupEventListeners() {
             }
 
             try {
-                let parsed = null;
-                if (raw.startsWith('http://') || raw.startsWith('https://')) {
-                    const url = new URL(raw);
-                    const param = url.searchParams.get('serverConfig');
-                    if (param) {
-                        const normalized = param.replace(/-/g, '+').replace(/_/g, '/');
-                        parsed = JSON.parse(atob(normalized));
-                    }
-                } else {
-                    parsed = JSON.parse(raw);
-                }
-
+                const parsed = await parseServerConfigData(raw);
                 if (!parsed) throw new Error('No se pudo extraer la configuración');
 
                 applyParsedServerConfig(parsed, 'Configuración importada y aplicada ✅');

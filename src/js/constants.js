@@ -175,7 +175,8 @@ export const PEER_CONFIG = getActivePeerConfig();
 export const CLOUD_CONFIG = {
     get enabled() { return getServerConfig().cloud.enabled; },
     get apiEndpoint() { return getServerConfig().cloud.apiEndpoint; },
-    get turnCredentialsPath() { return getServerConfig().cloud.turnCredentialsPath; }
+    get turnCredentialsPath() { return getServerConfig().cloud.turnCredentialsPath; },
+    get vapidPublicKey() { return getServerConfig().cloud.vapidPublicKey; }
 };
 
 // --- Refresh Rates & Trails ---

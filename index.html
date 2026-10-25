@@ -337,7 +337,7 @@
     <div id="map"></div>
     
     <!-- Panel Flotante de Controles y Geovalla -->
-    <div class="location-controls-panel" id="location-controls-panel">
+    <div class="location-controls-panel collapsed" id="location-controls-panel">
         <div class="location-controls-header" id="toggle-location-controls-btn">
             <span><i class="fas fa-sliders-h" style="color: var(--primary); margin-right: 6px;"></i> Controles & Geovalla</span>
             <i class="fas fa-chevron-down chevron" id="location-controls-chevron"></i>
@@ -405,7 +405,7 @@
         </div>
     </div>
 </div>
-</main></div>
+</main>
 
 
 <!-- Panel de Chat -->
@@ -430,6 +430,7 @@
 </div>
 </div>
 </footer>
+</div>
 
 <!-- Modal de Confirmación Custom (para evitar problemas con confirm() nativo) -->
 <div class="modal-overlay" id="confirm-modal" style="display: none;">
@@ -527,9 +528,12 @@
 <!-- Modal de Configuración de Servidores -->
 <div class="modal-overlay" id="server-config-modal" style="display: none; z-index: 10000;">
     <div class="modal-content" style="max-width: 92%; width: 550px; max-height: 90vh; display: flex; flex-direction: column;">
-        <div class="modal-header">
-            <i class="fas fa-server modal-icon"></i>
-            <h3 style="margin: 0;">Servidores de Red & Relé</h3>
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-server modal-icon"></i>
+                <h3 style="margin: 0;">Servidores de Red & Relé</h3>
+            </div>
+            <button class="btn-icon-close" id="server-config-close" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted);"><i class="fas fa-times"></i></button>
         </div>
         <div class="modal-body" style="overflow-y: auto; padding: 15px; flex: 1; display: flex; flex-direction: column; gap: 15px;">
             <p class="small-hint" style="margin-top: 0;">Configura servidores de señalización PeerJS y relés STUN/TURN propios (ej. binario Go de Pingo o Coturn).</p>

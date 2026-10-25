@@ -633,6 +633,10 @@ export function endTour() {
             container.style.display = 'none';
         }, 200);
     }
+    const serverModal = document.getElementById('server-config-modal');
+    if (serverModal) {
+        serverModal.style.display = 'none';
+    }
     currentTour = null;
     currentStepIndex = 0;
 }

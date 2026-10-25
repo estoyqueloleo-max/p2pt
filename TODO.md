@@ -1,4 +1,20 @@
 # 📌 Próximos Pasos (Prioridad Alta)
+- [ ] **Trazabilidad y Resiliencia de Conexión con el Appliance (Cliente y Servidor)**:
+  - *Problema*: La conexión arranca bien con el appliance pero se degrada o pierde silenciosamente al rato (inactividad, Doze mode en móviles, expiración de credenciales TURN o corte de sockets).
+  - *En el Cliente (Web/PWA)*:
+    - Ring-buffer en memoria de telemetría (últimos 100 eventos): registrar estados de PeerJS (`open`, `disconnected`, `close`, `error`) y de WebRTC (`iceConnectionStateChange`, `connectionStateChange`).
+    - Ping/Pong a nivel de aplicación cada 30s sobre el WebSocket de señalización para detectar desconexión antes de que el SO congele el socket; disparar `peer.reconnect()` si no hay respuesta en 10s.
+    - Panel/modal de diagnóstico en la UI ("Ver log de conexión") con opción de "Copiar informe" para soporte.
+  - *En el Servidor (Appliance)*:
+    - Structured logging en `p2pt-server` con Client-ID, timestamps y códigos de cierre WebSocket (`1000 normal`, `1006 abnormal/timeout`).
+    - Auditoría de CoTURN / TURN logs: vigilar si las sesiones de relé expiran por falta de peticiones `Refresh` periódicas de WebRTC (por defecto 10 min).
+- [ ] **Diagnóstico del Test de Conexión en Móviles (SSL / Red)**:
+  - *Problema*: En algunos móviles el test de conectividad (`testServerConnectivityUI`) falla o entra en timeout aunque el certificado sea público y emitido por Let's Encrypt.
+  - *Causas a validar y resolver*:
+    1. **Cadena SSL Incompleta (Fullchain vs Cert)**: Servir `fullchain.pem` en Apache/Reverse Proxy del appliance en lugar de solo `cert.pem`. Los navegadores de escritorio descargan la intermedia (AIA fetching) o la tienen en caché, pero Safari iOS y Android WebView rechazan la conexión inmediatamente si falta la CA intermedia.
+    2. **NAT Loopback / Hairpinning**: Si el móvil está en la misma red Wi-Fi (`192.168.1.x`) e intenta acceder a `salon.appliances.klitosan.com` (IP pública `79.112.20.12`), muchos routers descartan el tráfico saliente-entrante en el mismo puerto WAN. Probar en 4G/5G vs Wi-Fi o implementar fallback automático a IP LAN cuando se detecte estar en la misma subred.
+    3. **CORS en el endpoint HTTP**: Asegurar que las peticiones `fetch()` a `candidateEndpoints` respondan con cabeceras `Access-Control-Allow-Origin: *`.
+    4. **Puerto explícito en SNI**: En `${proto}://${host}:${port}`, evitar adjuntar `:443` en HTTPS para evitar problemas de SNI en webviews móviles antiguos.
 - [ ] **Revisar descubrimiento P2P**: Creo que el problema es que empieza a escanear urls (de servidor P2P) que no son la que le hemos dado a la configuracion ... hay que revisar la parte de "subir el hash".
 
 
@@ -11,6 +27,12 @@
 
 # 🧠 Funcionalidades Core (Git, P2P, Búsqueda, Identidad)
 - [ ] **Identidades**: Revisar si puede haber colisión con los números (IDs) generados.
+- [ ] **Entropía, Unicidad y Modelo Criptográfico de Identidad (ECDSA P-256)**:
+  - *Problema*: La clave criptográfica actual se deriva determinísticamente de `deriveKeyPairFromPhrase(phrase, salt)`. Si dos usuarios usan la misma frase y salt, sus claves privadas y públicas son idénticas y tienen la misma identidad ECDSA.
+  - *Opciones de solución*:
+    1. **Salt de dispositivo único (Híbrido)**: Generar un `device_salt` criptográfico aleatorio único (16 bytes hex) por dispositivo persistido en IndexedDB. La derivación usa `phrase + salt + device_salt`. Dos personas con la misma clave nunca colisionan. La migración de móvil requiere backup o código QR de emparejamiento.
+    2. **Generación aleatoria pura + Passphrase para cifrado de Vault (Modelo Signal/WhatsApp)**: El par de claves ECDSA se genera 100% aleatorio (`crypto.subtle.generateKey`), y la frase secreta sólo actúa como clave de descifrado del almacén/backup.
+    3. **Mnemonics con alta entropía (BIP-39)**: Migrar a frases semilla estándar de 12 o 24 palabras aleatorias (128-256 bits de entropía real) donde estadísticamente la probabilidad de colisión es cero.
 - [ ] **Vinculación / Auto-Login Mastodon en Pingo**: Consumir datos federados del appliance (`serverConfig.mastodon`) para autenticar al usuario vía OAuth transparente sin formularios externos.
 - [ ] **Evolucionar el webview**: Navegar por páginas, "guardarlas" y firmarlas en un commit.
 - [ ] **Opción de conectar fuera de PeerJS**: Explorar conexión directa o a través de otra red PeerJS.
