@@ -289,6 +289,8 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
         console.log('[Peer] Signaling server connection established. My ID:', id);
         state.myPeerId = id;
         logDiag('Signaling', `✅ Conectado a servidor de señalización con ID: ${id}`);
+        if (elements.statusIndicator) elements.statusIndicator.classList.add('online');
+        if (elements.myPeerId) elements.myPeerId.innerText = id;
         startSignalingHeartbeat();
 
         // Proactive cloud registration and TURN fetch (Non-blocking & Concurrent)
@@ -395,11 +397,15 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
         } else if (err.type === 'peer-unavailable') {
             console.log('[Peer] Target peer not found (offline).');
         }
+        if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed') {
+            if (elements.statusIndicator) elements.statusIndicator.classList.remove('online');
+        }
         if (onError) onError(err);
     });
 
     state.peer.on('disconnected', () => {
         console.warn('[Peer] Disconnected from signaling server.');
+        if (elements.statusIndicator) elements.statusIndicator.classList.remove('online');
         stopSignalingHeartbeat();
         if (onDisconnected) onDisconnected();
         // Automatic reconnection attempt with a small delay

@@ -82,7 +82,9 @@ function init() {
             // On Error
             (err) => {
                 console.error('Peer Error:', err);
-                if (elements.statusIndicator) elements.statusIndicator.classList.remove('online');
+                if (err && (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed')) {
+                    if (elements.statusIndicator) elements.statusIndicator.classList.remove('online');
+                }
             },
             // On Disconnected
             () => {
