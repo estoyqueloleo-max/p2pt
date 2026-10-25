@@ -291,13 +291,11 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
         logDiag('Signaling', `✅ Conectado a servidor de señalización con ID: ${id}`);
         startSignalingHeartbeat();
 
-        // Proactive cloud registration and TURN fetch (Non-blocking)
+        // Proactive cloud registration and TURN fetch (Non-blocking & Concurrent)
         if (state.useCloudServices) {
+            // 1. Inmediatamente y en paralelo: obtener credenciales dinámicas de TURN/Relay
             (async () => {
                 try {
-                    logDiag('Cloud', 'Iniciando registro en la nube y suscripción Push...');
-                    await initPushNotifications(id, updateLocationStatus);
-                    
                     const iceConfig = await fetchTurnCredentials(id);
                     if (iceConfig && state.peer && state.peer.socket) {
                         const baseIce = configToUse.config.iceServers || [];
@@ -313,11 +311,20 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
                         }
                         logDiag('ICE', `Servidores ICE actualizados (${mergedIce.length} servidores configurados)`);
                     }
-
                     await fetchGitCredentials(id);
                 } catch (err) {
-                    logDiag('Cloud', `Advertencia en inicialización cloud: ${err.message}`, 'warn');
-                    console.warn('[Cloud] Background initialization failed:', err);
+                    logDiag('ICE', `Aviso obteniendo TURN/Git: ${err.message}`, 'warn');
+                }
+            })();
+
+            // 2. En paralelo y sin bloquear TURN: registro WebPush
+            (async () => {
+                try {
+                    logDiag('Cloud', 'Iniciando registro en la nube y suscripción Push...');
+                    await initPushNotifications(id, updateLocationStatus);
+                } catch (err) {
+                    logDiag('Cloud', `Advertencia en suscripción Push: ${err.message}`, 'warn');
+                    console.warn('[Cloud] Push initialization failed:', err);
                 }
             })();
         } else {
