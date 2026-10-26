@@ -2,7 +2,7 @@
  * Pingo - Constants & Configuration
  */
 
-export const VERSION = 79;
+export const VERSION = 80;
 
 const isLocalHost = import.meta.env.VITE_PEER_HOST === 'localhost' || import.meta.env.VITE_PEER_HOST === '127.0.0.1';
 
@@ -123,7 +123,21 @@ export function getActivePeerConfig(fallbackIndex = null) {
     const config = getServerConfig();
     const isLocal = config.signaling.host === 'localhost' || config.signaling.host === '127.0.0.1';
 
-    const iceServers = isLocal ? [] : [...DEFAULT_STUN_SERVERS];
+    let iceServers = isLocal ? [] : [...DEFAULT_STUN_SERVERS];
+
+    // Read cached dynamic ICE credentials if available and not expired
+    try {
+        const cachedRaw = localStorage.getItem('pingo_cached_ice');
+        if (cachedRaw) {
+            const cached = JSON.parse(cachedRaw);
+            if (cached && cached.expiry && cached.expiry > Date.now() && Array.isArray(cached.iceServers) && cached.iceServers.length > 0) {
+                // Prepend cached authenticated TURN servers
+                iceServers = [...cached.iceServers, ...iceServers];
+            }
+        }
+    } catch (e) {
+        console.warn('[Config] Error reading pingo_cached_ice from localStorage:', e);
+    }
 
     // Add manual TURN server if configured (filter out unauthenticated default 'pingo:pingosecret' placeholder)
     if (config.turn && config.turn.urls && config.turn.urls.length > 0) {

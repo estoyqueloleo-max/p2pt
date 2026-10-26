@@ -418,6 +418,14 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
                         if (state.peer._options && state.peer._options.config) {
                             state.peer._options.config.iceServers = mergedIce;
                         }
+                        try {
+                            localStorage.setItem('pingo_cached_ice', JSON.stringify({
+                                iceServers: mergedIce,
+                                expiry: Date.now() + ((iceConfig.ttl || 86400) * 1000)
+                            }));
+                        } catch (e) {
+                            console.warn('[ICE] Failed to cache ICE servers:', e);
+                        }
                         logDiag('ICE', `Servidores ICE actualizados (${mergedIce.length} servidores configurados)`);
                     }
                     await fetchGitCredentials(id);
@@ -629,6 +637,30 @@ export function scheduleReconnect(peerId) {
         return; // Already scheduled
     }
 
+    // Tie-breaker to prevent glare (both peers trying to connect simultaneously):
+    // The peer with the smaller Peer ID initiates the connection.
+    // The peer with the larger Peer ID waits and listens for the incoming connection.
+    const myId = String(state.myPeerId || localStorage.getItem('pingo_my_id') || '');
+    if (myId && id && myId > id) {
+        console.log(`[Peer] ⚖️ Tie-breaker: mi ID (${myId}) > destino (${id}). Esperando llamada entrante...`);
+        // Solo como seguro de vida: si el otro extremo no llama en 15 segundos, permitimos llamar
+        reconnectTimers[id] = setTimeout(async () => {
+            delete reconnectTimers[id];
+            if (state.connections[id] && isConnectionTrulyAlive(state.connections[id])) {
+                cancelReconnect(id);
+                return;
+            }
+            console.log(`[Peer] ⏳ Fallback tras espera pasiva a ${id}. Intentando conectar...`);
+            try {
+                await connectToPeer(id);
+                cancelReconnect(id);
+            } catch (err) {
+                scheduleReconnect(id);
+            }
+        }, 15000);
+        return;
+    }
+
     const attempts = (reconnectAttempts[id] || 0) + 1;
     reconnectAttempts[id] = attempts;
 
@@ -737,6 +769,16 @@ export function handleIncomingConnection(conn) {
             clearTimeout(authTimeout);
             return;
         }
+
+        // Resolving glare: if we had a pending outgoing call to this peer, cancel/abort it
+        if (state.pendingConnections && state.pendingConnections[conn.peer]) {
+            console.log('[Peer] 🤝 Glare resolved: incoming connection from', conn.peer, 'opened. Canceling pending outgoing call.');
+            try {
+                state.pendingConnections[conn.peer].close();
+            } catch (e) {}
+            delete state.pendingConnections[conn.peer];
+        }
+        cancelReconnect(conn.peer);
 
         logDiag('P2P', `✅ Canal de datos entrante abierto con ${conn.peer}`);
         console.log('[Peer] Awaiting auth from:', conn.peer);
