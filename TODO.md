@@ -58,6 +58,20 @@
 - [ ] **Soporte Nativo IPv6 y DuckDNS (AAAA)**: Registrar IPv6 global de la RPi Zero y añadir validación de reglas de firewall *pinhole* en el dashboard.
 - [ ] **Clasificación RFC de Tipo de NAT en Go**: Implementar escáner en `p2pt-server` para detectar si la conexión es *Symmetric NAT* (bloqueo P2P) o *Full/Restricted Cone*.
 - [ ] **Estrategia Híbrida de Relé TURN**: P2P directo por STUN por defecto + red de relé TURN de respaldo para el ~15% de casos 5G/CGNAT simétrico.
+- [ ] **Multiplexación y Cifrado para el Pool Limitado de Puertos TURN Relay (Rango 7000-7010)**:
+  - *Problema*: Actualmente solo tenemos 11 puertos UDP (`7000-7010`) abiertos en el router hacia el appliance. En WebRTC cada asignación tradicional (Allocate) reserva 1 puerto por peer/stream, lo que causa agotamiento rápido (`Error 508 Insufficient Capacity`) al conectar múltiples móviles o reintentar llamadas.
+  - *Opciones de Multiplexación & Cifrado*:
+    1. **Multiplexación en 1 Solo Puerto TURN (Single-Port Relay / RFC 5766 ChannelBind)**:
+       - *Idea*: Modificar el `RelayAddressGenerator` de Pion para que devuelva el mismo puerto (ej. `3478` o `7000`) para todas las asignaciones, o implementar un despachador demuxer en Go.
+       - *Mecanismo*: Pion TURN/WebRTC soporta `ChannelData` (mensajes multiplexados con Channel Number de 2 bytes: `0x4000` a `0x7FFE`). El servidor identifica la sesión en un único socket UDP analizando la 5-tupla (`IP_origen, Puerto_origen`) y el identificador de canal, sin necesidad de abrir un puerto nuevo por cliente.
+    2. **Túnel Cifrado WireGuard / WebRTC DataChannel Gateway (Overlay P2P)**:
+       - *Idea*: En vez de delegar el paso de tráfico a puertos UDP dinámicos clásicos de TURN, utilizar un único túnel cifrado en un solo puerto UDP (ej. puerto `51820` tipo WireGuard o Noise Protocol / DTLS).
+       - *Ventaja Criptográfica*: Cada cliente negocia una clave asimétrica efímera (Noise IK / Curve25519 o DTLS 1.3). El appliance reenvía paquetes encapsulados y cifrados de extremo a extremo (E2EE) sin inspeccionar contenido ni necesitar reservar puertos por usuario.
+    3. **Relay Multiplexado sobre TLS / WSS (WebSocket Data Transport Fallback)**:
+       - *Idea*: Aprovechar el puerto `:443` HTTPS/WSS existente para transportar paquetes TURN envueltos en `turn:...?transport=tcp` o WebSockets (`WSS`).
+       - *Ventaja*: Cero puertos UDP adicionales requeridos en el router. Todo el tráfico de relé va dentro del canal TLS 1.3 existente con ALPN `turn` o sobre frames binarios WebSocket autenticados con HMAC.
+    4. **Reciclaje Agresivo y Liberación de Puertos Huérfanos**:
+       - *Idea*: Reducir el TTL de allocation de TURN por defecto de 10 minutos a 60 segundos si no hay tráfico activo, e interceptar eventos de desconexión en el servidor PeerJS (`LEAVE` / socket close) para llamar inmediatamente a `allocation.Close()` y liberar el puerto UDP al pool disponible.
 
 # ☁️ Copia de Seguridad & Cloud
 - [ ] **Exportación KML/GPX**: Convertir rutas de Git a formatos estándar.
