@@ -2,7 +2,7 @@
  * Pingo - Constants & Configuration
  */
 
-export const VERSION = 81;
+export const VERSION = 82;
 
 const isLocalHost = import.meta.env.VITE_PEER_HOST === 'localhost' || import.meta.env.VITE_PEER_HOST === '127.0.0.1';
 

@@ -18,6 +18,13 @@
 - [ ] **Revisar descubrimiento P2P**: Creo que el problema es que empieza a escanear urls (de servidor P2P) que no son la que le hemos dado a la configuracion ... hay que revisar la parte de "subir el hash".
 
 
+- [x] **Navegación y Edición desde la Agenda**: Al pulsar sobre cualquier elemento/evento de la agenda o del listado, navegar o abrir directamente su modal/formulario de edición con sus datos precargados. (Implementado en `src/js/ui-manager.js` y validado con test E2E `tests/agenda-edit.spec.js`).
+- [x] **Fallo en Pruebas Preliminares de Web Push**: Investigado y corregido por completo:
+  - *Causa raíz 1 (VAPID)*: El cliente utilizaba una clave pública VAPID por defecto codificada en duro (`BEJ45uzz...`), mientras que `pingo-server` auto-generaba su propio par de claves en `vapid_keys.json`. Al enviar notificaciones cifradas con claves distintas, los servidores WebPush (Google/Mozilla/Apple) rechazaban la entrega.
+  - *Solución*: Exposición de endpoint `/push/vapid-public-key` e inclusión de `vapidPublicKey` y objeto `cloud` en `/turn-credentials` para descubrimiento automático dinámico, además de renovación automática de suscripciones obsoletas en el Service Worker si la clave cambia.
+  - *Causa raíz 2 (Permisos & Botón UI)*: No se comprobaba `Notification.permission` antes de llamar a `pushManager.subscribe()`, y en la agenda no existía el botón interactivo `.send-ping`. Se ha añadido el botón de campana dorada para enviar Ping a cualquier contacto y se tolera desfase horario (+/- 1 hora) en la autenticación `X-Pingo-Auth`.
+  - *Auto-limpieza*: Pruning automático de suscripciones en backend si el servicio push responde con HTTP 404 o 410 Gone.
+  - *Validación*: Tests unitarios de integración en Go (`server/push_manager_test.go`) y suite E2E completa en Playwright (`tests/push-notifications.spec.js`) pasando en verde.
 - [ ] **Revisar api de maps que se usa**: Porque parece que era CartoDb por debajo y ahora pide apikey.
 - [ ] **Configuración de VAPID en producción**: Mover las claves VAPID a variables de entorno en Cloudflare.
 - [ ] **Gitea CORS Config**: Configurar `app.ini` en la RPi para permitir CORS.
@@ -58,8 +65,8 @@
 - [ ] **Soporte Nativo IPv6 y DuckDNS (AAAA)**: Registrar IPv6 global de la RPi Zero y añadir validación de reglas de firewall *pinhole* en el dashboard.
 - [ ] **Clasificación RFC de Tipo de NAT en Go**: Implementar escáner en `p2pt-server` para detectar si la conexión es *Symmetric NAT* (bloqueo P2P) o *Full/Restricted Cone*.
 - [ ] **Estrategia Híbrida de Relé TURN**: P2P directo por STUN por defecto + red de relé TURN de respaldo para el ~15% de casos 5G/CGNAT simétrico.
-- [ ] **Multiplexación y Cifrado para el Pool Limitado de Puertos TURN Relay (Rango 7000-7010)**:
-  - *Problema*: Actualmente solo tenemos 11 puertos UDP (`7000-7010`) abiertos en el router hacia el appliance. En WebRTC cada asignación tradicional (Allocate) reserva 1 puerto por peer/stream, lo que causa agotamiento rápido (`Error 508 Insufficient Capacity`) al conectar múltiples móviles o reintentar llamadas.
+- [x] **Multiplexación y Cifrado para el Pool Limitado de Puertos TURN Relay (Ring Binding + Channel Binding)**:
+  - *Solución Implementada*: `RingRelayAddressGenerator` en `server/ring_relay.go`, multiplexación sobre los puertos configurados (7000-7010) mediante conexiones virtuales `VirtualPacketConn` con Channel Binding RFC 5766, reducción de TTL a 60 segundos y hook con `TurnMonitor`. Validado con test unitario `TestTURN_RingRelay_PortMultiplexing`.
   - *Opciones de Multiplexación & Cifrado*:
     1. **Multiplexación en 1 Solo Puerto TURN (Single-Port Relay / RFC 5766 ChannelBind)**:
        - *Idea*: Modificar el `RelayAddressGenerator` de Pion para que devuelva el mismo puerto (ej. `3478` o `7000`) para todas las asignaciones, o implementar un despachador demuxer en Go.

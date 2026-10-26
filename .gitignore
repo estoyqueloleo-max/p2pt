@@ -10,3 +10,7 @@ docs/tutorials/videos/
 docs/tutorials/audio/
 docs/tutorials/final/
 pingo.env
+data/
+server/pingo-server
+p2pt-server-*
+

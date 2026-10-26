@@ -21,8 +21,8 @@ self.addEventListener('push', (event) => {
     const title = data.title || 'Pingo!';
     const options = {
         body: data.body || 'Toca para ver la ubicación.',
-        icon: 'https://cdn-icons-png.flaticon.com/512/1865/1865269.png',
-        badge: 'https://cdn-icons-png.flaticon.com/512/1865/1865269.png',
+        icon: './icon-192x192.png',
+        badge: './icon-192x192.png',
         vibrate: [100, 50, 100],
         data: {
             url: data.url || '/'

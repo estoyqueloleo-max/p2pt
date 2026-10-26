@@ -81,6 +81,29 @@ export function checkDeepLink() {
     }
 }
 
+let editingContactIndex = -1;
+
+export function openEditContact(index) {
+    const contact = state.agenda[index];
+    if (!contact) return;
+    editingContactIndex = index;
+
+    if (elements.contactName) elements.contactName.value = contact.alias || '';
+    if (elements.contactPhrase) elements.contactPhrase.value = contact.phrase || '';
+    if (elements.contactSalt) elements.contactSalt.value = contact.salt || '';
+    if (elements.contactPublicKey) elements.contactPublicKey.value = contact.publicKey || '';
+    if (elements.contactId) elements.contactId.value = contact.derivedId || '';
+
+    if (elements.saveContactBtn) elements.saveContactBtn.textContent = 'Actualizar Contacto';
+    if (elements.addContactForm) elements.addContactForm.style.display = 'block';
+    if (elements.addContactBtn) elements.addContactBtn.style.display = 'none';
+
+    if (elements.addContactForm) {
+        elements.addContactForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    if (elements.contactName) elements.contactName.focus();
+}
+
 export function renderAgenda() {
     if (!elements.agendaContainer) return;
     
@@ -113,17 +136,24 @@ export function renderAgenda() {
         const card = document.createElement('div');
         card.className = 'contact-card';
         card.innerHTML = `
-            <div class="contact-info">
+            <div class="contact-info" data-index="${index}" title="Haz clic para editar este contacto" style="cursor: pointer;">
                 <div class="contact-main">
                     <span class="contact-status-dot ${statusClass}" style="border-color: ${getPeerColor(id)}"></span>
                     <span class="contact-name">${contact.alias}</span>
+                    <i class="fas fa-pen contact-edit-icon" style="font-size: 0.7rem; color: var(--text-dim); opacity: 0.6; margin-left: 4px;" title="Editar"></i>
                     ${contact.publicKey ? '<i class="fas fa-shield-alt" style="font-size: 0.75rem; color: #4ade80; margin-left: 5px;" title="Verificación Asimétrica (Zero Trust Activo)"></i>' : ''}
                 </div>
                 <span class="contact-id-hint">ID: ${contact.derivedId}</span>
             </div>
             <div class="contact-actions">
+                <button class="btn btn-outline btn-sm edit-contact" data-index="${index}" title="Editar Contacto">
+                    <i class="fas fa-pen"></i>
+                </button>
                 <button class="btn btn-outline btn-sm open-chat" data-id="${contact.derivedId}" title="Abrir Chat">
                     <i class="fas fa-comment"></i>
+                </button>
+                <button class="btn btn-outline btn-sm send-ping" data-id="${contact.derivedId}" title="Enviar Ping Push (Despertar en segundo plano)">
+                    <i class="fas fa-bell"></i>
                 </button>
                 ${isConnected ? `
                 <button class="btn btn-outline btn-sm start-call-contact" data-id="${contact.derivedId}" title="Iniciar Cámara / Videollamada" style="color: #818cf8; border-color: rgba(99, 102, 241, 0.4);">
@@ -145,6 +175,18 @@ export function renderAgenda() {
             </div>
         `;
         elements.agendaContainer.appendChild(card);
+    });
+
+    // Event listeners para editar contacto al pulsar en la info o botón de edición
+    elements.agendaContainer.querySelectorAll('.contact-info, .edit-contact').forEach(el => {
+        el.addEventListener('click', (e) => {
+            // Si el clic fue en el dot de estado de conexión, no abrir edición
+            if (e.target.closest('.contact-status-dot')) return;
+            const idx = parseInt(el.dataset.index, 10);
+            if (!isNaN(idx)) {
+                openEditContact(idx);
+            }
+        });
     });
 
     // Event listeners for dynamic elements
@@ -803,12 +845,27 @@ export function setupEventListeners() {
     elements.saveIdentityBtn.addEventListener('click', saveIdentity);
 
     elements.addContactBtn.addEventListener('click', () => {
+        editingContactIndex = -1;
+        if (elements.saveContactBtn) elements.saveContactBtn.textContent = 'Guardar';
+        if (elements.contactName) elements.contactName.value = '';
+        if (elements.contactPhrase) elements.contactPhrase.value = '';
+        if (elements.contactSalt) elements.contactSalt.value = '';
+        if (elements.contactPublicKey) elements.contactPublicKey.value = '';
+        if (elements.contactId) elements.contactId.value = '';
         elements.addContactForm.style.display = 'block';
         elements.addContactBtn.style.display = 'none';
+        if (elements.contactName) elements.contactName.focus();
     });
     elements.cancelContactBtn.addEventListener('click', () => {
+        editingContactIndex = -1;
+        if (elements.saveContactBtn) elements.saveContactBtn.textContent = 'Guardar';
         elements.addContactForm.style.display = 'none';
         elements.addContactBtn.style.display = 'block';
+        if (elements.contactName) elements.contactName.value = '';
+        if (elements.contactPhrase) elements.contactPhrase.value = '';
+        if (elements.contactSalt) elements.contactSalt.value = '';
+        if (elements.contactPublicKey) elements.contactPublicKey.value = '';
+        if (elements.contactId) elements.contactId.value = '';
     });
     elements.saveContactBtn.addEventListener('click', async () => {
         const alias = elements.contactName.value.trim();
@@ -823,10 +880,25 @@ export function setupEventListeners() {
         }
 
         const derivedId = manualId || (await derivePeerId(phrase, salt));
-        state.agenda.push({ alias, phrase, salt, publicKey: publicKey || null, derivedId });
+
+        if (editingContactIndex >= 0 && state.agenda[editingContactIndex]) {
+            const existing = state.agenda[editingContactIndex];
+            state.agenda[editingContactIndex] = {
+                ...existing,
+                alias,
+                phrase,
+                salt,
+                publicKey: publicKey || existing.publicKey || null,
+                derivedId
+            };
+        } else {
+            state.agenda.push({ alias, phrase, salt, publicKey: publicKey || null, derivedId });
+        }
         saveAgenda();
         renderAgenda();
         
+        editingContactIndex = -1;
+        if (elements.saveContactBtn) elements.saveContactBtn.textContent = 'Guardar';
         elements.addContactForm.style.display = 'none';
         elements.addContactBtn.style.display = 'block';
         
@@ -2909,7 +2981,7 @@ export function showSignalingStats() {
                         <i class="fas fa-copy"></i> Copiar
                     </button>
                 </div>
-                <div id="diag-logs-container" style="max-height: 130px; overflow-y: auto; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px; text-align: left;">
+                <div id="diag-logs-container" style="min-height: 140px; max-height: 240px; overflow-y: auto; overflow-x: auto; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 8px; text-align: left; user-select: text;">
                     ${logsHtml}
                 </div>
             </div>

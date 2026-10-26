@@ -170,6 +170,15 @@ async function fetchTurnCredentials(myPeerId) {
                 saveServerConfig(current);
                 console.log('[Config] Updated capabilities from Servidor Amigo:', current.capabilities);
             }
+            if (data.vapidPublicKey || data.cloud?.vapidPublicKey) {
+                const key = data.vapidPublicKey || data.cloud?.vapidPublicKey;
+                const current = getServerConfig();
+                current.cloud = current.cloud || {};
+                current.cloud.vapidPublicKey = key;
+                if (data.cloud?.apiEndpoint) current.cloud.apiEndpoint = data.cloud.apiEndpoint;
+                saveServerConfig(current);
+                console.log('[Config] Auto-configured VAPID Public Key from Servidor Amigo:', key.slice(0, 10) + '...');
+            }
             return data;
         } else {
             logDiag('TURN', `❌ Error HTTP ${response.status} al solicitar credenciales a ${url}`, 'error');
