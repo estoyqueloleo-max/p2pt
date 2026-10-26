@@ -300,10 +300,16 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
                 try {
                     const iceConfig = await fetchTurnCredentials(id);
                     if (iceConfig && state.peer && state.peer.socket) {
-                        const baseIce = configToUse.config.iceServers || [];
+                        const rawBase = configToUse.config.iceServers || [];
+                        // Filtrar el TURN estático por defecto para no duplicar ni usar credenciales 'pingo:pingosecret' obsoletas
+                        const baseIce = rawBase.filter(s => {
+                            const urls = Array.isArray(s.urls) ? s.urls : [s.urls];
+                            return !urls.some(u => typeof u === 'string' && u.startsWith('turn:'));
+                        });
+                        const dynamicIce = iceConfig.iceServers || [iceConfig];
                         const mergedIce = [
-                            ...baseIce,
-                            ...iceConfig.iceServers || [iceConfig]
+                            ...dynamicIce,
+                            ...baseIce
                         ];
                         if (state.peer.options && state.peer.options.config) {
                             state.peer.options.config.iceServers = mergedIce;
