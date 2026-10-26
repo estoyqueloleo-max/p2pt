@@ -2,7 +2,7 @@
  * Pingo - Constants & Configuration
  */
 
-export const VERSION = 80;
+export const VERSION = 81;
 
 const isLocalHost = import.meta.env.VITE_PEER_HOST === 'localhost' || import.meta.env.VITE_PEER_HOST === '127.0.0.1';
 
@@ -138,6 +138,17 @@ export function getActivePeerConfig(fallbackIndex = null) {
     } catch (e) {
         console.warn('[Config] Error reading pingo_cached_ice from localStorage:', e);
     }
+
+    // Deduplicate iceServers by URL and credentials to prevent accumulation
+    const seenUrls = new Set();
+    iceServers = iceServers.filter(server => {
+        if (!server || !server.urls) return false;
+        const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+        const key = urls.join('|') + '::' + (server.username || '') + '::' + (server.credential || '');
+        if (seenUrls.has(key)) return false;
+        seenUrls.add(key);
+        return true;
+    });
 
     // Add manual TURN server if configured (filter out unauthenticated default 'pingo:pingosecret' placeholder)
     if (config.turn && config.turn.urls && config.turn.urls.length > 0) {

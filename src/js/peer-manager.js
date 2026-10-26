@@ -411,7 +411,17 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
                             ...dynamicIce,
                             ...baseIce
                         ];
-                        const mergedIce = await enrichIceServersWithDoh(preliminaryIce);
+                        const rawMergedIce = await enrichIceServersWithDoh(preliminaryIce);
+                        const seen = new Set();
+                        const mergedIce = rawMergedIce.filter(s => {
+                            if (!s || !s.urls) return false;
+                            const u = Array.isArray(s.urls) ? s.urls.join('|') : String(s.urls);
+                            const key = `${u}::${s.username || ''}::${s.credential || ''}`;
+                            if (seen.has(key)) return false;
+                            seen.add(key);
+                            return true;
+                        });
+
                         if (state.peer.options && state.peer.options.config) {
                             state.peer.options.config.iceServers = mergedIce;
                         }
