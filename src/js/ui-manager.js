@@ -1423,7 +1423,7 @@ export function setupEventListeners() {
                         }
                     }
 
-                    if (data.myIdentity && !onlyAgenda) {
+                    if (data.myIdentity) {
                         state.myIdentity = data.myIdentity;
                         localStorage.setItem('pingo_passphrase', state.myIdentity.phrase);
                         localStorage.setItem('pingo_salt', state.myIdentity.salt);
@@ -1438,7 +1438,7 @@ export function setupEventListeners() {
                             }
                         }
                         
-                        updateLocationStatus('Respaldo importado. Reiniciando...', 'fa-fingerprint');
+                        updateLocationStatus('Respaldo e identidad importados. Reiniciando...', 'fa-fingerprint');
                         setTimeout(() => window.location.reload(), 1500);
                         return; // Wait for reload
                     }

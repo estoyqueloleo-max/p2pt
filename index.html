@@ -90,10 +90,9 @@
 <i class="fas fa-file-import"></i> Importar
                     </button>
 </div>
-<div style="margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
     <input type="checkbox" id="import-only-agenda-check" checked style="cursor: pointer; width: 16px; height: 16px; accent-color: var(--accent);">
     <label for="import-only-agenda-check" style="font-size: 0.75rem; color: var(--text-dim); cursor: pointer; user-select: none;">
-        Importar <strong>solo agenda</strong> (mantener servidores del Appliance intactos)
+        Mantener servidores del Appliance (importar solo <strong>agenda e identidad</strong>)
     </label>
 </div>
 <input accept=".json" id="import-file-input" style="display: none;" type="file"/>
@@ -565,7 +564,7 @@
                 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom: 8px;">
                     <div>
                         <label style="font-size: 0.75rem; color: var(--text-muted);">Host / Dominio / IP</label>
-                        <input type="text" id="server-signaling-host" placeholder="peerjs-server.accreativos.com" style="width: 100%; font-size: 0.85rem;" />
+                        <input type="text" id="server-signaling-host" placeholder="pingo.appliances.klitosan.com" style="width: 100%; font-size: 0.85rem;" />
                     </div>
                     <div>
                         <label style="font-size: 0.75rem; color: var(--text-muted);">Puerto</label>
