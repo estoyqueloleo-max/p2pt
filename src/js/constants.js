@@ -125,12 +125,14 @@ export function getActivePeerConfig(fallbackIndex = null) {
 
     const iceServers = isLocal ? [] : [...DEFAULT_STUN_SERVERS];
 
-    // Add manual TURN server if configured
+    // Add manual TURN server if configured (filter out unauthenticated default 'pingo:pingosecret' placeholder)
     if (config.turn && config.turn.urls && config.turn.urls.length > 0) {
-        const turnEntry = { urls: config.turn.urls };
-        if (config.turn.username) turnEntry.username = config.turn.username;
-        if (config.turn.credential) turnEntry.credential = config.turn.credential;
-        iceServers.push(turnEntry);
+        if (config.turn.username !== 'pingo' || config.turn.credential !== 'pingosecret') {
+            const turnEntry = { urls: config.turn.urls };
+            if (config.turn.username) turnEntry.username = config.turn.username;
+            if (config.turn.credential) turnEntry.credential = config.turn.credential;
+            iceServers.push(turnEntry);
+        }
     }
 
     let host = config.signaling.host;
