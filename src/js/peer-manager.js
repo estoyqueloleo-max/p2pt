@@ -33,6 +33,90 @@ async function getUI() {
     return await import('./ui-manager.js');
 }
 
+/**
+ * Resuelve un nombre de dominio a IPv4 directamente en el navegador usando DNS-over-HTTPS (DoH).
+ * Bypasea problemas de resolución DNS en redes móviles 4G/5G y operadores con problemas UDP.
+ */
+const dohCache = new Map();
+async function resolveDohIPv4(domain) {
+    if (!domain || domain === 'localhost' || /^\d{1,3}(\.\d{1,3}){3}$/.test(domain)) {
+        return domain;
+    }
+    if (dohCache.has(domain)) {
+        return dohCache.get(domain);
+    }
+    const dohEndpoints = [
+        `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=A`,
+        `https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=A`
+    ];
+
+    for (const endpoint of dohEndpoints) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2500);
+            const resp = await fetch(endpoint, {
+                headers: { 'Accept': 'application/dns-json' },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (resp.ok) {
+                const data = await resp.json();
+                const answers = data.Answer || [];
+                const aRecord = answers.find(a => a.type === 1 && a.data && /^\d{1,3}(\.\d{1,3}){3}$/.test(a.data));
+                if (aRecord) {
+                    dohCache.set(domain, aRecord.data);
+                    logDiag('DNS', `✅ [DoH] Dominio '${domain}' resuelto a IPv4: ${aRecord.data}`);
+                    return aRecord.data;
+                }
+            }
+        } catch (e) {
+            // Probar siguiente endpoint DoH
+        }
+    }
+    return null;
+}
+
+/**
+ * Si una URL stun: o turn: contiene un nombre de dominio, añade además la versión por IP resuelta
+ */
+async function enrichIceServersWithDoh(iceServers) {
+    if (!Array.isArray(iceServers)) return iceServers;
+    const enriched = [];
+    for (const entry of iceServers) {
+        if (!entry) continue;
+        const urls = Array.isArray(entry.urls) ? entry.urls : [entry.urls];
+        const newUrls = [...urls];
+        for (const rawUrl of urls) {
+            if (typeof rawUrl !== 'string') continue;
+            try {
+                const match = rawUrl.match(/^(turns?|stuns?):([^:/?#]+)(:(\d+))?(\?.*)?$/i);
+                if (match) {
+                    const proto = match[1];
+                    const host = match[2];
+                    const portStr = match[3] || '';
+                    const query = match[5] || '';
+                    if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(host) && host !== 'localhost') {
+                        const ip = await resolveDohIPv4(host);
+                        if (ip) {
+                            const ipUrl = `${proto}:${ip}${portStr}${query}`;
+                            if (!newUrls.includes(ipUrl)) {
+                                newUrls.push(ipUrl);
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                // Silencioso
+            }
+        }
+        enriched.push({
+            ...entry,
+            urls: newUrls
+        });
+    }
+    return enriched;
+}
+
 async function fetchTurnCredentials(myPeerId) {
     if (!state.useCloudServices) {
         logDiag('TURN', 'Servicios Cloud desactivados (useCloudServices=false). No se obtienen credenciales dinámicas.', 'warn');
@@ -307,10 +391,11 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
                             return !urls.some(u => typeof u === 'string' && u.startsWith('turn:'));
                         });
                         const dynamicIce = iceConfig.iceServers || [iceConfig];
-                        const mergedIce = [
+                        const preliminaryIce = [
                             ...dynamicIce,
                             ...baseIce
                         ];
+                        const mergedIce = await enrichIceServersWithDoh(preliminaryIce);
                         if (state.peer.options && state.peer.options.config) {
                             state.peer.options.config.iceServers = mergedIce;
                         }
