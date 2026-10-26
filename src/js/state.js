@@ -137,6 +137,7 @@ export const elements = {
     get exportBackupBtn() { return getEl('export-backup-btn'); },
     get importBackupBtn() { return getEl('import-backup-btn'); },
     get importFileInput() { return getEl('import-file-input'); },
+    get importOnlyAgendaCheck() { return getEl('import-only-agenda-check'); },
     get migrationBanner() { return getEl('migration-banner'); },
     get migrateAgendaBtn() { return getEl('migrate-agenda-btn'); },
 

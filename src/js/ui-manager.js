@@ -1388,38 +1388,42 @@ export function setupEventListeners() {
                         throw new Error('Formato de archivo inválido');
                     }
 
+                    const onlyAgenda = elements.importOnlyAgendaCheck ? elements.importOnlyAgendaCheck.checked : false;
+
                     if (data.agenda) {
                         state.agenda = data.agenda;
                         saveAgenda();
                         renderAgenda();
                     }
 
-                    if (data.serverConfig) {
-                        saveServerConfig(data.serverConfig);
-                        populateServerConfigUI();
-                    }
+                    if (!onlyAgenda) {
+                        if (data.serverConfig) {
+                            saveServerConfig(data.serverConfig);
+                            populateServerConfigUI();
+                        }
 
-                    if (data.gitRemote) {
-                        localStorage.setItem('git_remote', JSON.stringify(data.gitRemote));
-                        localStorage.setItem('pingo_git_remote', JSON.stringify(data.gitRemote));
-                        if (elements.gitRemoteUrl) elements.gitRemoteUrl.value = data.gitRemote.url || '';
-                        if (elements.gitUsername) elements.gitUsername.value = data.gitRemote.user || '';
-                        if (elements.gitToken) elements.gitToken.value = data.gitRemote.token || '';
-                    }
+                        if (data.gitRemote) {
+                            localStorage.setItem('git_remote', JSON.stringify(data.gitRemote));
+                            localStorage.setItem('pingo_git_remote', JSON.stringify(data.gitRemote));
+                            if (elements.gitRemoteUrl) elements.gitRemoteUrl.value = data.gitRemote.url || '';
+                            if (elements.gitUsername) elements.gitUsername.value = data.gitRemote.user || '';
+                            if (elements.gitToken) elements.gitToken.value = data.gitRemote.token || '';
+                        }
 
-                    if (data.mastodonConfig) {
-                        saveMastodonConfig(data.mastodonConfig);
-                    }
+                        if (data.mastodonConfig) {
+                            saveMastodonConfig(data.mastodonConfig);
+                        }
 
-                    if (data.useCloudServices !== undefined) {
-                        state.useCloudServices = Boolean(data.useCloudServices);
-                        localStorage.setItem('pingo_use_cloud', state.useCloudServices);
-                        if (elements.cloudServicesToggle) {
-                            elements.cloudServicesToggle.checked = state.useCloudServices;
+                        if (data.useCloudServices !== undefined) {
+                            state.useCloudServices = Boolean(data.useCloudServices);
+                            localStorage.setItem('pingo_use_cloud', state.useCloudServices);
+                            if (elements.cloudServicesToggle) {
+                                elements.cloudServicesToggle.checked = state.useCloudServices;
+                            }
                         }
                     }
 
-                    if (data.myIdentity) {
+                    if (data.myIdentity && !onlyAgenda) {
                         state.myIdentity = data.myIdentity;
                         localStorage.setItem('pingo_passphrase', state.myIdentity.phrase);
                         localStorage.setItem('pingo_salt', state.myIdentity.salt);
@@ -2136,18 +2140,23 @@ export async function requestWakeLock() {
     }
 }
 
-export function forceAppReset() {
+export async function forceAppReset() {
     updateLocationStatus('Limpiando caché y reiniciando...', 'fa-sync fa-spin');
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(registrations => {
+    try {
+        if ('caches' in window) {
+            const cacheKeys = await caches.keys();
+            await Promise.all(cacheKeys.map(k => caches.delete(k)));
+        }
+        if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
             for (let registration of registrations) {
-                registration.unregister();
+                await registration.unregister();
             }
-            window.location.href = window.location.origin + window.location.pathname + '?clear=' + Date.now();
-        });
-    } else {
-        window.location.reload(true);
+        }
+    } catch (e) {
+        console.warn('Error purgando cachés:', e);
     }
+    window.location.href = window.location.origin + window.location.pathname + '?clear=' + Date.now();
 }
 
 export function injectStyles() {

@@ -90,6 +90,12 @@
 <i class="fas fa-file-import"></i> Importar
                     </button>
 </div>
+<div style="margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+    <input type="checkbox" id="import-only-agenda-check" checked style="cursor: pointer; width: 16px; height: 16px; accent-color: var(--accent);">
+    <label for="import-only-agenda-check" style="font-size: 0.75rem; color: var(--text-dim); cursor: pointer; user-select: none;">
+        Importar <strong>solo agenda</strong> (mantener servidores del Appliance intactos)
+    </label>
+</div>
 <input accept=".json" id="import-file-input" style="display: none;" type="file"/>
 
 <!-- Banner de Migración Zero Trust para Agendas Antiguas -->

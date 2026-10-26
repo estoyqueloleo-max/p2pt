@@ -28,10 +28,7 @@ const detectedAPIEndpoint = isHostedOnAppliance ? `${detectedProto}://${detected
 
 export const FALLBACK_SIGNALING_SERVERS = [
     { host: detectedHost, port: detectedPort, path: '/', secure: detectedSecure },
-    { host: 'pingo.appliances.klitosan.com', port: 443, path: '/', secure: true },
-    { host: 'salon.appliances.klitosan.com', port: 443, path: '/', secure: true },
-    { host: 'peerjs-server.accreativos.com', port: 443, path: '/', secure: true },
-    { host: '0.peerjs.com', port: 443, path: '/', secure: true }
+    { host: 'pingo.appliances.klitosan.com', port: 443, path: '/', secure: true }
 ];
 
 export const DEFAULT_SERVER_CONFIG = {
