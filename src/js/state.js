@@ -55,7 +55,9 @@ export const state = {
     routeLayers: {}, // routeId -> L.layerGroup
 
     // Cloud/Relay state
-    useCloudServices: localStorage.getItem('pingo_use_cloud') === 'true',
+    useCloudServices: localStorage.getItem('pingo_use_cloud') !== null 
+        ? localStorage.getItem('pingo_use_cloud') === 'true' 
+        : true,
 
     // Runtime
     isPrimaryTab: true, // Default to true until checked
