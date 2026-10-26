@@ -77,7 +77,8 @@ async function resolveDohIPv4(domain) {
 }
 
 /**
- * Si una URL stun: o turn: contiene un nombre de dominio, añade además la versión por IP resuelta
+ * Si una URL stun: o turn: contiene un nombre de dominio, sustituye o complementa con la IP resuelta por DoH.
+ * Para conexiones UDP en redes móviles, la URL con IP directa evita que el navegador intente resolver DNS UDP fallido.
  */
 async function enrichIceServersWithDoh(iceServers) {
     if (!Array.isArray(iceServers)) return iceServers;
@@ -85,7 +86,7 @@ async function enrichIceServersWithDoh(iceServers) {
     for (const entry of iceServers) {
         if (!entry) continue;
         const urls = Array.isArray(entry.urls) ? entry.urls : [entry.urls];
-        const newUrls = [...urls];
+        const newUrls = [];
         for (const rawUrl of urls) {
             if (typeof rawUrl !== 'string') continue;
             try {
@@ -99,14 +100,23 @@ async function enrichIceServersWithDoh(iceServers) {
                         const ip = await resolveDohIPv4(host);
                         if (ip) {
                             const ipUrl = `${proto}:${ip}${portStr}${query}`;
+                            // Priorizar la IP directa primero para evitar fallos de DNS UDP en móvil
                             if (!newUrls.includes(ipUrl)) {
                                 newUrls.push(ipUrl);
+                            }
+                            // Si el host es el appliance privado, evitamos dejar la URL con nombre de dominio
+                            // en redes móviles para no disparar el molesto warning 701 del navegador
+                            if (host.includes('appliances.klitosan.com') || host.includes('duckdns.org')) {
+                                continue;
                             }
                         }
                     }
                 }
             } catch (err) {
                 // Silencioso
+            }
+            if (!newUrls.includes(rawUrl)) {
+                newUrls.push(rawUrl);
             }
         }
         enriched.push({
