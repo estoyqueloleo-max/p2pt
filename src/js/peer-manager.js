@@ -21,6 +21,12 @@ import { handleIncomingStream, handleStreamEnded, getAvailableStreamFor } from '
 // Registry for data handlers to avoid circular dependencies
 const dataHandlers = {};
 
+// Promise to coordinate TURN resolution before outgoing connections start
+let turnReadyResolve = null;
+export let turnReadyPromise = new Promise((resolve) => {
+    turnReadyResolve = resolve;
+});
+
 export function registerDataHandler(type, handler) {
     console.log(`[Peer] Registering handler for: ${type}`);
     dataHandlers[type] = handler;
@@ -417,6 +423,8 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
                     await fetchGitCredentials(id);
                 } catch (err) {
                     logDiag('ICE', `Aviso obteniendo TURN/Git: ${err.message}`, 'warn');
+                } finally {
+                    if (turnReadyResolve) turnReadyResolve();
                 }
             })();
 
@@ -432,6 +440,7 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
             })();
         } else {
             logDiag('Cloud', 'Servicios Cloud desactivados por el usuario', 'info');
+            if (turnReadyResolve) turnReadyResolve();
         }
 
         if (onOpen) onOpen(id);
@@ -1119,6 +1128,18 @@ export async function connectToPeer(targetId) {
             });
         } catch (e) {
             console.warn('[Peer] Peer ready wait error:', e);
+        }
+    }
+
+    // Ensure dynamic TURN credentials and DoH resolution have completed before starting outgoing call
+    if (turnReadyPromise) {
+        try {
+            await Promise.race([
+                turnReadyPromise,
+                new Promise(resolve => setTimeout(resolve, 2000))
+            ]);
+        } catch (e) {
+            // Continuar incluso si expira
         }
     }
 
