@@ -23,6 +23,13 @@ export function getMastodonConfig() {
                 token: saved.token || ''
             };
         }
+        if (srvConfig.signaling && srvConfig.signaling.host && srvConfig.signaling.host !== 'localhost' && srvConfig.signaling.host !== 'peerjs-13sv.onrender.com') {
+            const proto = srvConfig.signaling.secure ? 'https' : 'http';
+            return {
+                instanceUrl: `${proto}://${srvConfig.signaling.host}`,
+                token: saved.token || ''
+            };
+        }
 
         // Default to current host
         return {

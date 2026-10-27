@@ -55,6 +55,7 @@ test.beforeAll(async () => {
 
   serverProcess = spawn(serverBinary, [
     '-no-upnp',
+    '-no-tls',
     `-port=${HTTP_PORT}`,
     `-turn-port=${TURN_PORT}`,
     '-min-port=7000',

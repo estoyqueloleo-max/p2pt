@@ -2527,7 +2527,23 @@ export function setupMastodonListeners() {
     const btnOpenMastodon = document.getElementById('btn-open-mastodon');
     if (btnOpenMastodon) {
         btnOpenMastodon.addEventListener('click', () => {
-            openMastodonPWA();
+            const config = getMastodonConfig();
+            const modal = document.getElementById('mastodon-share-modal');
+            const instanceEl = document.getElementById('mastodon-instance-url');
+            const tokenEl = document.getElementById('mastodon-access-token');
+            const textEl = document.getElementById('mastodon-toot-text');
+            
+            // Si la instancia configurada no es un nodo dedicado o queremos revisar/configurar
+            if (modal) {
+                if (instanceEl) instanceEl.value = config.instanceUrl || window.location.origin;
+                if (tokenEl) tokenEl.value = config.token || '';
+                if (textEl && !textEl.value) {
+                    textEl.value = '¡Conectado desde Pingo en el Fediverso! 🌲🚴‍♂️\n\n#pingo #fediverse #activitypub';
+                }
+                modal.style.display = 'flex';
+            } else {
+                openMastodonPWA();
+            }
         });
     }
 
