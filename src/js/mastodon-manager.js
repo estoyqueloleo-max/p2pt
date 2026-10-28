@@ -54,6 +54,7 @@ export function saveMastodonConfig(config) {
 
 /**
  * Open Mastodon PWA Client (Phanpy / Elk) connected to the instance
+ * If connected to a Pingo appliance with GoToSocial, leverages /fediverse/sso for zero-click login
  * @param {string} [instanceUrl] Optional target instance
  */
 export function openMastodonPWA(instanceUrl) {
@@ -61,7 +62,18 @@ export function openMastodonPWA(instanceUrl) {
     const rawTarget = instanceUrl || config.instanceUrl || window.location.origin;
     const cleanHost = rawTarget.replace(/^https?:\/\//, '').replace(/\/.*$/, '').trim();
 
-    // Phanpy is an ultra-fast, mobile-friendly PWA client for Mastodon & GoToSocial
+    // Check if we have an active peer ID for zero-click SSO
+    const srvConfig = JSON.parse(localStorage.getItem('pingo_server_config') || '{}');
+    const myPeerId = srvConfig.peerId || localStorage.getItem('pingo_peer_id') || '';
+
+    if (myPeerId && (rawTarget.includes('appliances.klitosan.com') || rawTarget.includes(window.location.host))) {
+        // Direct zero-click SSO through appliance
+        const ssoUrl = `${rawTarget.replace(/\/+$/, '')}/fediverse/sso?peerId=${encodeURIComponent(myPeerId)}`;
+        window.open(ssoUrl, '_blank', 'noopener,noreferrer');
+        return;
+    }
+
+    // Standard fallback: Phanpy client connected to host
     const pwaUrl = `https://phanpy.social/#${cleanHost}`;
     window.open(pwaUrl, '_blank', 'noopener,noreferrer');
 }
@@ -155,6 +167,19 @@ export function openRouteMastodonShareModal(route) {
     textEl.value = formatted;
     if (instanceEl) instanceEl.value = config.instanceUrl || window.location.origin;
     if (tokenEl) tokenEl.value = config.token || '';
+
+    const credsBox = document.getElementById('mastodon-creds-box');
+    const emailEl = document.getElementById('mastodon-cred-email');
+    const passEl = document.getElementById('mastodon-cred-pass');
+    if (credsBox && emailEl && passEl) {
+        if (config.email && config.initialPassword) {
+            emailEl.textContent = config.email;
+            passEl.textContent = config.initialPassword;
+            credsBox.style.display = 'block';
+        } else {
+            credsBox.style.display = 'none';
+        }
+    }
 
     modal.style.display = 'flex';
 }

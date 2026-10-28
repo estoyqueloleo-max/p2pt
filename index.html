@@ -708,7 +708,13 @@
 
                 <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Token de Acceso (Opcional para publicar en 1 clic)</label>
                 <input type="password" id="mastodon-access-token" placeholder="Bearer Token (write:statuses)" style="width: 100%; font-size: 0.8rem; padding: 6px 10px; border-radius: 6px; box-sizing: border-box;" />
-                <span class="small-hint" style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-top: 3px;">Si no tienes token, pulsa "Web Intent" para componerlo en el navegador.</span>
+                <span class="small-hint" style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-top: 3px;">Si no tienes token, pulsa "Web Intent" o "Abrir Phanpy (SSO)".</span>
+
+                <div id="mastodon-creds-box" style="margin-top: 10px; padding: 8px 10px; background: rgba(99,100,255,0.08); border: 1px solid rgba(99,100,255,0.25); border-radius: 6px; font-size: 0.75rem; display: none;">
+                    <div style="font-weight: 600; color: #a5a6ff; margin-bottom: 4px;">🔑 Credenciales de tu Appliance (Apps móviles / Tusky):</div>
+                    <div style="color: var(--text-muted);">Email: <span id="mastodon-cred-email" style="color: #fff; font-family: monospace;"></span></div>
+                    <div style="color: var(--text-muted);">Clave inicial: <span id="mastodon-cred-pass" style="color: #fff; font-family: monospace;"></span></div>
+                </div>
             </div>
         </div>
         <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">

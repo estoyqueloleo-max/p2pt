@@ -244,7 +244,9 @@ export async function fetchMastodonCredentials(myPeerId) {
                 const mastodonPayload = {
                     instanceUrl: data.instanceUrl,
                     token: data.token,
-                    username: data.username
+                    username: data.username,
+                    email: data.email || '',
+                    initialPassword: data.initialPassword || ''
                 };
                 const current = getServerConfig();
                 current.mastodon = { enabled: true, ...mastodonPayload };
