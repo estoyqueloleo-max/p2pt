@@ -226,6 +226,40 @@ export async function fetchGitCredentials(myPeerId) {
     return null;
 }
 
+export async function fetchMastodonCredentials(myPeerId) {
+    try {
+        const config = getServerConfig();
+        const proto = config.signaling.secure ? 'https' : 'http';
+        const host = config.signaling.host;
+        const port = config.signaling.port;
+        if (!host || host === 'peerjs-server.accreativos.com' || host === '0.peerjs.com') {
+            return null;
+        }
+
+        const url = `${proto}://${host}:${port}/mastodon-credentials?peerId=${encodeURIComponent(myPeerId)}`;
+        const resp = await fetch(url);
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data.enabled && data.instanceUrl && data.token) {
+                const mastodonPayload = {
+                    instanceUrl: data.instanceUrl,
+                    token: data.token,
+                    username: data.username
+                };
+                const current = getServerConfig();
+                current.mastodon = { enabled: true, ...mastodonPayload };
+                saveServerConfig(current);
+                localStorage.setItem('pingo_mastodon_config', JSON.stringify(mastodonPayload));
+                console.log('[Mastodon] Auto-configured zero-registration Mastodon credentials:', data.instanceUrl, '@' + data.username);
+                return data;
+            }
+        }
+    } catch (err) {
+        console.warn('[Mastodon] fetchMastodonCredentials error:', err);
+    }
+    return null;
+}
+
 async function probeServerCapabilities() {
     try {
         const config = getServerConfig();
@@ -448,8 +482,9 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
                         logDiag('ICE', `Servidores ICE actualizados (${mergedIce.length} servidores configurados)`);
                     }
                     await fetchGitCredentials(id);
+                    await fetchMastodonCredentials(id);
                 } catch (err) {
-                    logDiag('ICE', `Aviso obteniendo TURN/Git: ${err.message}`, 'warn');
+                    logDiag('ICE', `Aviso obteniendo TURN/Git/Mastodon: ${err.message}`, 'warn');
                 } finally {
                     if (turnReadyResolve) turnReadyResolve();
                 }
