@@ -4,6 +4,7 @@
  */
 
 import { updateLocationStatus } from './utils.js';
+import { state } from './state.js';
 
 const STORAGE_KEY = 'pingo_mastodon_config';
 
@@ -64,7 +65,7 @@ export function openMastodonPWA(instanceUrl) {
 
     // Check if we have an active peer ID for zero-click SSO
     const srvConfig = JSON.parse(localStorage.getItem('pingo_server_config') || '{}');
-    const myPeerId = srvConfig.peerId || localStorage.getItem('pingo_peer_id') || '';
+    const myPeerId = state.myPeerId || srvConfig.peerId || localStorage.getItem('pingo_my_id') || localStorage.getItem('pingo_peer_id') || '';
 
     if (myPeerId && (rawTarget.includes('appliances.klitosan.com') || rawTarget.includes(window.location.host))) {
         // Direct zero-click SSO through appliance
