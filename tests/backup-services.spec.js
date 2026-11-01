@@ -67,4 +67,32 @@ test.describe('Backup and Appliance Import/Export Tests', () => {
     const cloudApiValue = await page.locator('#server-cloud-api').inputValue();
     expect(cloudApiValue).toBe('https://salon.appliances.klitosan.com:443');
   });
+
+  test('openMastodonPWA genera la URL de SSO con peerId y token', async ({ page }) => {
+    await page.goto('/');
+
+    const ssoUrlGenerated = await page.evaluate(async () => {
+      const { state } = await import('/src/js/state.js');
+      const { openMastodonPWA } = await import('/src/js/mastodon-manager.js');
+
+      state.myPeerId = '45455583';
+      state.peerToken = 'test-peerjs-token-abc999';
+
+      let openedUrl = null;
+      const originalOpen = window.open;
+      window.open = (url) => {
+        openedUrl = url;
+      };
+
+      try {
+        openMastodonPWA('https://salon.appliances.klitosan.com');
+        return openedUrl;
+      } finally {
+        window.open = originalOpen;
+      }
+    });
+
+    expect(ssoUrlGenerated).toBe('https://salon.appliances.klitosan.com/fediverse/sso?peerId=45455583&token=test-peerjs-token-abc999');
+  });
 });
+

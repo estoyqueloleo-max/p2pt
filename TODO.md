@@ -1,4 +1,8 @@
 # 📌 Próximos Pasos (Prioridad Alta)
+- [x] **Alojar cliente Web Phanpy en el Appliance (`/phanpy`) para resolver SSO**:
+  - *Objetivo*: Embeber el build estático HTML/JS/CSS de Phanpy directamente en el appliance (servido bajo la ruta `/phanpy`), igual que tenemos `/web` para el cliente de Pingo.
+  - *Problema que resuelve*: Actualmente, al abrir `https://phanpy.social` (dominio externo), las políticas de cookies entre sitios (`SameSite=Lax`, Cross-Origin/Third-Party Cookies) en móviles impiden que la cookie de sesión emitida por `/fediverse/sso` viaje hacia `https://pingo.appliances.klitosan.com/oauth/authorize`, forzando a reintroducir usuario/contraseña o abortando el canje OAuth.
+  - *Solución*: Implementada etapa multi-stage Docker en `server/Dockerfile` (compilando `cheeaun/phanpy` con Node 22 hacia `/usr/share/pingo/phanpy` y `/var/lib/p2pt/phanpy`), router estático y SPA fallback en `server/main.go` bajo `/phanpy/`, flujo first-party en `server/gotosocial_proxy.go` (`HandlePhanpySSO` emitiendo cookies de sesión y redirigiendo localmente a `/phanpy/#/login?instance=...`), y fallback en cliente PWA `mastodon-manager.js`. Todo validado con tests unitarios y de integración.
 - [ ] **Trazabilidad y Resiliencia de Conexión con el Appliance (Cliente y Servidor)**:
   - *Problema*: La conexión arranca bien con el appliance pero se degrada o pierde silenciosamente al rato (inactividad, Doze mode en móviles, expiración de credenciales TURN o corte de sockets).
   - *En el Cliente (Web/PWA)*:

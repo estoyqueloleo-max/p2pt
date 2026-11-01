@@ -4,6 +4,7 @@
 
 export const state = {
     myPeerId: null,
+    peerToken: null,
     peer: null,
     map: null,
     myMarker: null,

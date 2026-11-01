@@ -236,7 +236,11 @@ export async function fetchMastodonCredentials(myPeerId) {
             return null;
         }
 
-        const url = `${proto}://${host}:${port}/mastodon-credentials?peerId=${encodeURIComponent(myPeerId)}`;
+        const peerToken = state.peerToken || (state.peer && (state.peer.token || state.peer._options?.token || state.peer.options?.token)) || '';
+        let url = `${proto}://${host}:${port}/mastodon-credentials?peerId=${encodeURIComponent(myPeerId)}`;
+        if (peerToken) {
+            url += `&token=${encodeURIComponent(peerToken)}`;
+        }
         const resp = await fetch(url);
         if (resp.ok) {
             const data = await resp.json();
@@ -404,6 +408,8 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
 
     console.log('[Peer] Initializing Peer with configuration:', configToUse);
     state.peer = new Peer(randomId, configToUse);
+    state.peerToken = state.peer._options?.token || state.peer.options?.token || state.peer.token || null;
+    if (state.peer) state.peer.token = state.peerToken;
 
     let signalingHeartbeatTimer = null;
 
@@ -433,6 +439,8 @@ export function initPeer(onOpen, onConnection, onError, onDisconnected) {
     state.peer.on('open', async (id) => {
         console.log('[Peer] Signaling server connection established. My ID:', id);
         state.myPeerId = id;
+        state.peerToken = state.peer._options?.token || state.peer.options?.token || state.peer.token || state.peerToken;
+        if (state.peer) state.peer.token = state.peerToken;
         logDiag('Signaling', `✅ Conectado a servidor de señalización con ID: ${id}`);
         if (elements.statusIndicator) elements.statusIndicator.classList.add('online');
         if (elements.myPeerId) elements.myPeerId.innerText = id;

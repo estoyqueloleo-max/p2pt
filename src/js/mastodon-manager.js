@@ -66,15 +66,28 @@ export function openMastodonPWA(instanceUrl) {
     // Check if we have an active peer ID for zero-click SSO
     const srvConfig = JSON.parse(localStorage.getItem('pingo_server_config') || '{}');
     const myPeerId = state.myPeerId || srvConfig.peerId || localStorage.getItem('pingo_my_id') || localStorage.getItem('pingo_peer_id') || '';
+    const peerToken = state.peerToken || (state.peer && (state.peer.token || state.peer._options?.token || state.peer.options?.token)) || '';
 
-    if (myPeerId && (rawTarget.includes('appliances.klitosan.com') || rawTarget.includes(window.location.host))) {
-        // Direct zero-click SSO through appliance
-        const ssoUrl = `${rawTarget.replace(/\/+$/, '')}/fediverse/sso?peerId=${encodeURIComponent(myPeerId)}`;
+    const isApplianceHost = rawTarget.includes('appliances.klitosan.com') || rawTarget.includes(window.location.host);
+
+    if (myPeerId && isApplianceHost) {
+        // Direct zero-click SSO through appliance (first-party local Phanpy)
+        let ssoUrl = `${rawTarget.replace(/\/+$/, '')}/fediverse/sso?peerId=${encodeURIComponent(myPeerId)}`;
+        if (peerToken) {
+            ssoUrl += `&token=${encodeURIComponent(peerToken)}`;
+        }
         window.open(ssoUrl, '_blank', 'noopener,noreferrer');
         return;
     }
 
-    // Standard fallback: Phanpy client connected to host
+    if (isApplianceHost) {
+        // Direct first-party Phanpy client hosted on this appliance
+        const localPhanpyUrl = `${rawTarget.replace(/\/+$/, '')}/phanpy/#/login?instance=${encodeURIComponent(cleanHost)}&submit=1`;
+        window.open(localPhanpyUrl, '_blank', 'noopener,noreferrer');
+        return;
+    }
+
+    // Standard fallback: External Phanpy client connected to host
     const pwaUrl = `https://phanpy.social/#${cleanHost}`;
     window.open(pwaUrl, '_blank', 'noopener,noreferrer');
 }
