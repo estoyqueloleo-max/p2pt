@@ -20,31 +20,30 @@ const locPort = isBrowser && window.location.port ? parseInt(window.location.por
 const locSecure = isBrowser ? window.location.protocol === 'https:' : true;
 const isHostedOnAppliance = isBrowser && locHost !== '' && locHost !== 'estoyqueloleo-max.github.io' && locHost !== 'pingo.accreativos.com';
 
-const detectedHost = isHostedOnAppliance ? locHost : 'pingo.appliances.klitosan.com';
+const detectedHost = isHostedOnAppliance ? locHost : 'peerjs-13sv.onrender.com';
 const detectedPort = isHostedOnAppliance ? locPort : 443;
 const detectedSecure = isHostedOnAppliance ? locSecure : true;
 const detectedProto = detectedSecure ? 'https' : 'http';
-const detectedAPIEndpoint = isHostedOnAppliance ? `${detectedProto}://${detectedHost}:${detectedPort}` : 'https://pingo.appliances.klitosan.com';
+const detectedAPIEndpoint = isHostedOnAppliance ? `${detectedProto}://${detectedHost}:${detectedPort}` : 'https://backend.estoyqueloleo.workers.dev';
 
 export const FALLBACK_SIGNALING_SERVERS = [
-    { host: detectedHost, port: detectedPort, path: '/', secure: detectedSecure },
-    { host: 'pingo.appliances.klitosan.com', port: 443, path: '/', secure: true }
+    { host: detectedHost, port: detectedPort, path: isHostedOnAppliance ? '/' : '/myapp', secure: detectedSecure }
 ];
 
 export const DEFAULT_SERVER_CONFIG = {
     signaling: {
         host: import.meta.env.VITE_PEER_HOST || detectedHost,
         port: import.meta.env.VITE_PEER_PORT ? parseInt(import.meta.env.VITE_PEER_PORT, 10) : detectedPort,
-        path: import.meta.env.VITE_PEER_PATH || '/',
+        path: import.meta.env.VITE_PEER_PATH || (isHostedOnAppliance ? '/' : '/myapp'),
         secure: import.meta.env.VITE_PEER_SECURE !== undefined ? import.meta.env.VITE_PEER_SECURE === 'true' : detectedSecure,
         key: 'peerjs'
     },
     fallbacks: FALLBACK_SIGNALING_SERVERS,
     turn: {
-        urls: [
+        urls: isHostedOnAppliance ? [
             `turn:${detectedHost}:3478?transport=udp`,
             `stun:${detectedHost}:3478`
-        ],
+        ] : [],
         username: 'pingo',
         credential: 'pingosecret'
     },

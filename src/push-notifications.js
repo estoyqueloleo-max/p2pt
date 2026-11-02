@@ -8,11 +8,11 @@ export const PUSH_CONFIG = {
         return CLOUD_CONFIG.vapidPublicKey || (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_VAPID_PUBLIC_KEY) || '';
     },
     get PUSH_API_ENDPOINT() {
-        const base = this.BASE_ENDPOINT || 'https://pingo.appliances.klitosan.com';
+        const base = this.BASE_ENDPOINT || 'https://backend.estoyqueloleo.workers.dev';
         return `${base}/push/subscribe`;
     },
     get PUSH_SEND_ENDPOINT() {
-        const base = this.BASE_ENDPOINT || 'https://pingo.appliances.klitosan.com';
+        const base = this.BASE_ENDPOINT || 'https://backend.estoyqueloleo.workers.dev';
         return `${base}/push/send`;
     }
 };

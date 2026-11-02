@@ -68,7 +68,7 @@ export function openMastodonPWA(instanceUrl) {
     const myPeerId = state.myPeerId || srvConfig.peerId || localStorage.getItem('pingo_my_id') || localStorage.getItem('pingo_peer_id') || '';
     const peerToken = state.peerToken || (state.peer && (state.peer.token || state.peer._options?.token || state.peer.options?.token)) || '';
 
-    const isApplianceHost = rawTarget.includes('appliances.klitosan.com') || rawTarget.includes(window.location.host);
+    const isApplianceHost = rawTarget.includes(window.location.host) || srvConfig.capabilities?.broadcastRelay;
 
     if (myPeerId && isApplianceHost) {
         // Direct zero-click SSO through appliance (first-party local Phanpy)

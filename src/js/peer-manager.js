@@ -112,7 +112,7 @@ async function enrichIceServersWithDoh(iceServers) {
                             }
                             // Si el host es el appliance privado, evitamos dejar la URL con nombre de dominio
                             // en redes móviles para no disparar el molesto warning 701 del navegador
-                            if (host.includes('appliances.klitosan.com') || host.includes('duckdns.org')) {
+                            if (host.includes('duckdns.org') || host.includes('.local') || host.includes('localhost')) {
                                 continue;
                             }
                         }
