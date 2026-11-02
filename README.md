@@ -1,12 +1,16 @@
 # 🐧 Pingo - Real-time P2P Location & Distributed Workspace
 
-[![PWA en Vivo](https://img.shields.io/badge/Demo_Web-GitHub_Pages-22c55e?style=for-the-badge&logo=github)](https://estoyqueloleo-max.github.io/p2pt/)
+[![PWA en Vivo](https://img.shields.io/badge/Demo_Pública-GitHub_Pages-22c55e?style=for-the-badge&logo=github)](https://estoyqueloleo-max.github.io/p2pt/)
 [![Señalización](https://img.shields.io/badge/Señalización-Render_(Go)-46e3b7?style=for-the-badge&logo=render)](https://peerjs-13sv.onrender.com/myapp)
 [![Cloud Backend](https://img.shields.io/badge/Cloud_Worker-Cloudflare-f38020?style=for-the-badge&logo=cloudflare)](https://backend.estoyqueloleo.workers.dev/)
 
-> 🚀 **PWA Lista para Usar en Vivo:**  
-> Puedes abrir la aplicación inmediatamente en tu navegador o móvil sin instalar nada desde:  
-> 👉 **[https://estoyqueloleo-max.github.io/p2pt/](https://estoyqueloleo-max.github.io/p2pt/)**
+> 🌐 **Dos Modos de Uso Disponibles:**
+> 1. **Modo Público / Zero-Install (GitHub Pages + Render)**:  
+>    Accede directamente a [https://estoyqueloleo-max.github.io/p2pt/](https://estoyqueloleo-max.github.io/p2pt/).  
+>    Utiliza señalización WebSocket gratuita en Render y servidores **STUN públicos de Google/Cloudflare** (sin intermediación TURN, 100% libre y sin costes).
+> 2. **Modo Soberano Completo (Appliance Privado / Raspberry Pi / Docker)**:  
+>    Despliega tu propio nodo con [p2pt-server](../p2pt-server/) o mediante [appliance-builder](https://github.com/josejuanmontiel/appliance-builder).  
+>    Dispondrás de tu propio **Servidor TURN UDP (Ring Relay 7000–7050)** para atravesar cualquier CGNAT 4G/5G, sincronización con **Smart HTTP Git**, instancia federada de **GoToSocial + Phanpy SSO** y notificaciones WebPush soberanas.
 
 > [!TIP]
 > Si vas a sincronizar tus rutas y notas con un servidor privado propio, consulta esta guía sobre [Gitea y CORS](https://people.iola.dk/arj/2020/04/28/gitea-and-cors/) para configurar el acceso seguro desde la App.
