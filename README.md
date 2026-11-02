@@ -4,13 +4,14 @@
 [![Señalización](https://img.shields.io/badge/Señalización-Render_(Go)-46e3b7?style=for-the-badge&logo=render)](https://peerjs-13sv.onrender.com/myapp)
 [![Cloud Backend](https://img.shields.io/badge/Cloud_Worker-Cloudflare-f38020?style=for-the-badge&logo=cloudflare)](https://backend.estoyqueloleo.workers.dev/)
 
-> 🌐 **Dos Modos de Uso Disponibles:**
-> 1. **Modo Público / Zero-Install (GitHub Pages + Render)**:  
+> 🌐 **Dos Modos de Despliegue y Conectividad:**
+> 1. **Modo Público Gratuito / Demo Web (GitHub Pages + Render)**:  
 >    Accede directamente a [https://estoyqueloleo-max.github.io/p2pt/](https://estoyqueloleo-max.github.io/p2pt/).  
->    Utiliza señalización WebSocket gratuita en Render y servidores **STUN públicos de Google/Cloudflare** (sin intermediación TURN, 100% libre y sin costes).
-> 2. **Modo Soberano Completo (Appliance Privado / Raspberry Pi / Docker)**:  
->    Despliega tu propio nodo con [p2pt-server](../p2pt-server/) o mediante [appliance-builder](https://github.com/josejuanmontiel/appliance-builder).  
->    Dispondrás de tu propio **Servidor TURN UDP (Ring Relay 7000–7050)** para atravesar cualquier CGNAT 4G/5G, sincronización con **Smart HTTP Git**, instancia federada de **GoToSocial + Phanpy SSO** y notificaciones WebPush soberanas.
+>    Utiliza señalización WebSocket gratuita en Render y servidores **STUN públicos de Google y Cloudflare**. No requiere instalación ni servidor propio.
+> 2. **Modo Soberano Autónomo (Tu propio Appliance en casa / Docker / Raspberry Pi)**:  
+>    Si necesitas atravesar CGNAT estricto (móvil 4G/5G a 4G/5G), sincronización privada con Git o red social federada, puedes montar tu propio servidor:
+>    * **Servidor Todo en Uno**: Compila o ejecuta el binario en [p2pt-server/](../p2pt-server/) (incluye PeerJS + Pion TURN Ring Relay en puertos UDP 7000–7050 + Smart HTTP Git + GoToSocial + Phanpy SSO).
+>    * **Imagen SD Inmutable para Raspberry Pi (Diskless en RAM)**: Construye fácilmente una imagen para flashear con [appliance-builder](https://github.com/josejuanmontiel/appliance-builder), un framework declarativo que ensambla el kernel de la Pi, Alpine Linux y el paquete `.apk` de `p2pt-server` protegido contra apagones imprevistos. Consulta la [Guía de Pruebas y Construcción de Appliance](docs/TURN_TESTING_AND_APPLIANCE.md).
 
 > [!TIP]
 > Si vas a sincronizar tus rutas y notas con un servidor privado propio, consulta esta guía sobre [Gitea y CORS](https://people.iola.dk/arj/2020/04/28/gitea-and-cors/) para configurar el acceso seguro desde la App.
