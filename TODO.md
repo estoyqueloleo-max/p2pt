@@ -3,6 +3,18 @@
   - *Objetivo*: Embeber el build estático HTML/JS/CSS de Phanpy directamente en el appliance (servido bajo la ruta `/phanpy`), igual que tenemos `/web` para el cliente de Pingo.
   - *Problema que resuelve*: Actualmente, al abrir `https://phanpy.social` (dominio externo), las políticas de cookies entre sitios (`SameSite=Lax`, Cross-Origin/Third-Party Cookies) en móviles impiden que la cookie de sesión emitida por `/fediverse/sso` viaje hacia `https://pingo.appliances.klitosan.com/oauth/authorize`, forzando a reintroducir usuario/contraseña o abortando el canje OAuth.
   - *Solución*: Implementada etapa multi-stage Docker en `server/Dockerfile` (compilando `cheeaun/phanpy` con Node 22 hacia `/usr/share/pingo/phanpy` y `/var/lib/p2pt/phanpy`), router estático y SPA fallback en `server/main.go` bajo `/phanpy/`, flujo first-party en `server/gotosocial_proxy.go` (`HandlePhanpySSO` emitiendo cookies de sesión y redirigiendo localmente a `/phanpy/#/login?instance=...`), y fallback en cliente PWA `mastodon-manager.js`. Todo validado con tests unitarios y de integración.
+- [ ] **Optimización Multi-Arch y Caché en Build de Phanpy (`server/Dockerfile`)**:
+  - *Problema*: La compilación cruzada de Phanpy (`npm ci` y `npm run build` con Vite) bajo emulación QEMU en arquitecturas ARM64 (`--platform linux/arm64`) tarda más de 10 minutos por la sobrecarga del emulador de CPU.
+  - *Solución*:
+    1. Utilizar compilación nativa en el builder usando `FROM --platform=$BUILDPLATFORM node:20-alpine AS phanpy-builder`. Como Phanpy produce assets estáticos (JS/CSS/HTML sin binarios nativos C), se puede compilar a velocidad x86_64 pura en segundos y volcar el resultado en la imagen final ARM64/AMD64.
+    2. Cachear dependencias de Node (`package*.json` antes del clone o build).
+    3. Evaluar soporte para precompilación local/helper (`build_phanpy.sh` volcando en `dist-phanpy/`) para builds locales instantáneos.
+- [ ] **Resiliencia WebRTC y Reconexión ante Handover de Red (WiFi $\leftrightarrow$ 4G/5G)**:
+  - *Problema*: Cuando un dispositivo móvil conmuta de Wi-Fi a datos móviles (o viceversa) durante una llamada o sesión activa, la IP local e interfaz de red cambian. El WebSocket de PeerJS se cierra bruscamente (`close 1005`), invalidando los candidatos ICE locales y dejando la llamada en estado huérfano o fallido sin recuperarse.
+  - *Solución*:
+    1. **Detección de Handover**: Escuchar eventos de conectividad (`navigator.connection.onchange`, eventos `online`/`offline`) para disparar una reconexión controlada de señalización (`peer.reconnect()`).
+    2. **ICE Restart Automático**: Monitorear `iceConnectionState === 'disconnected' | 'failed'` y ejecutar `peerConnection.restartIce()` con oferta de reinicio (`createOffer({ iceRestart: true })`) antes de destruir la llamada.
+    3. **Respaldo con Web Push**: Si la señalización WebSocket cae en medio de una llamada o notificación, emplear el canal de Web Push para despertar a la contraparte e inducir el re-establecimiento de la llamada.
 - [ ] **Trazabilidad y Resiliencia de Conexión con el Appliance (Cliente y Servidor)**:
   - *Problema*: La conexión arranca bien con el appliance pero se degrada o pierde silenciosamente al rato (inactividad, Doze mode en móviles, expiración de credenciales TURN o corte de sockets).
   - *En el Cliente (Web/PWA)*:
