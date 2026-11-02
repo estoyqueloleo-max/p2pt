@@ -319,17 +319,90 @@ Muchos sistemas operativos (especialmente Android con optimización de batería 
 
 ---
 
-## 🛠️ Detalles Técnicos y Arquitectura
+---
 
-- **P2P Directo**: Comunicación cifrada y directa vía WebRTC DataChannels y MediaStreams.
-- **Relé TURN Opcional**: Supera cortafuegos y CGNAT mediante servidor relé Coturn propio con autenticación dinámica.
-- **Cero Servidores Centrales**: Sin base de datos de usuarios en la nube; máxima privacidad y soberanía de datos.
-- **Notificaciones Push**: Estándar Web Push con VAPID para despertar dispositivos en segundo plano.
-- **Deep Linking**: Enlaces universales para apertura y establecimiento inmediato de túneles P2P.
-- **Smart Geolocation**: Doble motor de geolocalización con caché rápida y fallback de precisión adaptativa.
-- **Control de Versiones Git**: Motor `isomorphic-git` con sistema de ficheros virtual `lightning-fs` en navegador.
-- **Búsqueda Semántica On-Device**: Procesamiento de vectores en Web Worker para privacidad absoluta sin APIs de terceros.
-- **Servidor Independiente Doméstico (`server/`)**: Binario en Go con PeerJS, relé Pion TURN, auto-apertura UPnP para routers, sincronización periódica con DuckDNS y asistente interactivo CLI/Web. Más detalles en [`server/README.md`](file:///home/jose/workspace/pingo/server/README.md) y [`P2P.md`](file:///home/jose/workspace/pingo/P2P.md).
+## 🏔️ Construcción y Despliegue del Appliance Soberano
+
+Para disponer de conectividad total superando CGNAT (móvil 4G/5G), sincronización descentralizada de rutas con Git, identidad en el Fediverso y notificaciones WebPush propias, puedes desplegar tu propio **Appliance Pingo / P2PT**.
+
+```mermaid
+flowchart TD
+    subgraph Appliance ["🏠 Appliance Soberano (Go + Alpine)"]
+        WS["📡 Señalización PeerJS (:9000 TCP / :443 WSS)"]
+        TURN["🔄 Pion TURN Ring Relay (:3478 UDP + :7000-7010 UDP)"]
+        GIT["📦 Servidor Smart HTTP Git (/git/:user/:repo.git)"]
+        GTS["🐘 Fediverso (GoToSocial) + Phanpy Web (/phanpy)"]
+        PUSH["🔔 WebPush Manager VAPID (/push/)"]
+        UPNP["🔌 Auto-UPnP IGD & Diagnóstico CGNAT"]
+        DDNS["🦆 Sincronizador DuckDNS / Cloud Hub DDNS"]
+    end
+
+    Router["🌐 Router de Casa"] <-->|Auto-apertura UPnP| UPNP
+    DNS["🦆 DuckDNS / Cloud Hub"] <-->|Actualización IP| DDNS
+    Clients["📱 Móviles & Web (4G/5G/Wi-Fi)"] -->|WebSockets| WS
+    Clients -->|Relay UDP Cifrado| TURN
+    Clients -->|Sync Rutas y Datos| GIT
+```
+
+Dispones de dos vías de despliegue según tus necesidades:
+
+### 🐳 Opción A: Despliegue Rápido con Docker (Servidor, PC, NAS o VPS)
+Ideal si ya tienes una máquina encendida en casa (Raspberry Pi OS, Debian, Ubuntu, Unraid, TrueNAS):
+
+1. **Construir la imagen multi-arquitectura o local**:
+   ```bash
+   cd p2pt-server
+   docker build -t p2pt-server .
+   ```
+2. **Lanzar el contenedor con puertos TURN y persistencia**:
+   ```bash
+   docker run -d \
+     --name p2pt-appliance \
+     --restart unless-stopped \
+     -p 80:80 \
+     -p 443:443 \
+     -p 9000:9000 \
+     -p 3478:3478/udp \
+     -p 7000-7010:7000-7010/udp \
+     -v p2pt_data:/data \
+     -e MIN_RELAY_PORT=7000 \
+     -e MAX_RELAY_PORT=7010 \
+     p2pt-server
+   ```
+   > ⚠️ **Requisito de red:** En tu router debes redirigir el puerto `3478/UDP` (control TURN) y el rango `7000-7010/UDP` (tráfico de datos/audio WebRTC) hacia la IP local de tu servidor.
+
+---
+
+### 🍓 Opción B: Imagen SD Inmutable para Raspberry Pi (con `appliance-builder`)
+Ideal para crear un **electrodoméstico físico dedicado** en una **Raspberry Pi Zero W, 3 o 4**:
+* **Modo Diskless en RAM**: El sistema operativo Alpine Linux corre 100% en memoria RAM (`tmpfs`). Puedes desenchufar la Raspberry Pi de la corriente en cualquier momento **sin riesgo de corromper la tarjeta SD**.
+* **Auto-Arranque Inmutable**: Levanta Wi-Fi, servidor Web, PeerJS, TURN y Git en cuestión de segundos.
+
+#### Pasos de Construcción:
+1. **Generar el paquete APK de Alpine de `p2pt-server`**:
+   ```bash
+   cd p2pt-server
+   ./build.sh   # Genera dist/p2pt-server_X.X.X_armhf.apk mediante nfpm
+   ```
+2. **Clonar el motor de ensamblado [appliance-builder](https://github.com/josejuanmontiel/appliance-builder)**:
+   ```bash
+   git clone https://github.com/josejuanmontiel/appliance-builder.git
+   cd appliance-builder
+   ```
+3. **Construir la imagen de la tarjeta SD configurando tu Wi-Fi**:
+   ```bash
+   ./build.sh \
+     --name "p2pt-box" \
+     --board "rpi-zero" \
+     --wifi-ssid "MiFibraWiFi" \
+     --wifi-pass "MiClaveSegura" \
+     --ip "192.168.1.50" \
+     --gateway "192.168.1.1"
+   ```
+4. **Flashear y Arrancar**:
+   * Graba el archivo resultante `output/p2pt-box.img.gz` en tu tarjeta micro-SD usando [Raspberry Pi Imager](https://www.raspberrypi.com/software/) o Balena Etcher.
+   * Inserta la SD en la Raspberry Pi y conéctala a la alimentación.
+   * En 30 segundos, el nodo estará disponible en `http://p2pt-box.local:9000/` o en `http://192.168.1.50:9000/` con su asistente web y código QR de vinculación instantánea.
 
 ## 📱 Compilación Nativa (Android) con Capacitor
 
