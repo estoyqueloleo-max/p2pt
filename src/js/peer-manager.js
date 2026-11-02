@@ -134,8 +134,8 @@ async function enrichIceServersWithDoh(iceServers) {
 }
 
 async function fetchTurnCredentials(myPeerId) {
-    if (!state.useCloudServices) {
-        logDiag('TURN', 'Servicios Cloud desactivados (useCloudServices=false). No se obtienen credenciales dinámicas.', 'warn');
+    if (!state.useCloudServices || !CLOUD_CONFIG.enabled) {
+        logDiag('TURN', 'Servicios Cloud / TURN desactivados por defecto. Usando STUNs públicos.', 'info');
         return null;
     }
     

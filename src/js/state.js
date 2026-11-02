@@ -58,7 +58,7 @@ export const state = {
     // Cloud/Relay state
     useCloudServices: localStorage.getItem('pingo_use_cloud') !== null 
         ? localStorage.getItem('pingo_use_cloud') === 'true' 
-        : true,
+        : (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_CLOUD_ENABLED === 'true'),
 
     // Runtime
     isPrimaryTab: true, // Default to true until checked
