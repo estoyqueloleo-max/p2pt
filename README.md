@@ -1,5 +1,13 @@
 # 🐧 Pingo - Real-time P2P Location & Distributed Workspace
 
+[![PWA en Vivo](https://img.shields.io/badge/Demo_Web-GitHub_Pages-22c55e?style=for-the-badge&logo=github)](https://estoyqueloleo-max.github.io/p2pt/)
+[![Señalización](https://img.shields.io/badge/Señalización-Render_(Go)-46e3b7?style=for-the-badge&logo=render)](https://peerjs-13sv.onrender.com/myapp)
+[![Cloud Backend](https://img.shields.io/badge/Cloud_Worker-Cloudflare-f38020?style=for-the-badge&logo=cloudflare)](https://backend.estoyqueloleo.workers.dev/)
+
+> 🚀 **PWA Lista para Usar en Vivo:**  
+> Puedes abrir la aplicación inmediatamente en tu navegador o móvil sin instalar nada desde:  
+> 👉 **[https://estoyqueloleo-max.github.io/p2pt/](https://estoyqueloleo-max.github.io/p2pt/)**
+
 > [!TIP]
 > Si vas a sincronizar tus rutas y notas con un servidor privado propio, consulta esta guía sobre [Gitea y CORS](https://people.iola.dk/arj/2020/04/28/gitea-and-cors/) para configurar el acceso seguro desde la App.
 
